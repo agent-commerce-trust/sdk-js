@@ -9,14 +9,20 @@
     "packages/*"
   ],
   "scripts": {
+    "build": "npm run build:profile-dependency && npm run build --workspaces --if-present",
+    "build:profile-dependency": "node scripts/build-profile-dependency.js",
     "pack:dry-run": "node scripts/pack-dry-run.js",
-    "test": "node --test tests/*.test.js",
+    "test": "npm run build && node --test tests/*.test.js",
     "verify:ci": "npm test && npm run verify:publish && npm run verify:deferred && npm run pack:dry-run",
     "verify:deferred": "node scripts/verify-deferred-deprecation.js",
     "verify:publish": "node scripts/verify-publish-readiness.js"
   },
   "dependencies": {
     "@ap2-travel/profile": "file:../ap2-travel/packages/profile"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=20"

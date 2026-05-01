@@ -22,6 +22,17 @@ for (const { dir, manifest } of packages) {
   if (packument.filename.includes('/')) {
     throw new Error(`${manifest.name} produced unexpected nested tarball path ${packument.filename}`)
   }
+  const files = new Set((packument.files ?? []).map((file) => file.path))
+  for (const required of ['package.json', 'README.md', 'dist/index.js', 'dist/index.d.ts']) {
+    if (!files.has(required)) {
+      throw new Error(`${manifest.name} pack dry-run is missing ${required}`)
+    }
+  }
+  for (const forbidden of ['src/index.js', 'src/index.d.ts', 'src/index.ts']) {
+    if (files.has(forbidden)) {
+      throw new Error(`${manifest.name} pack dry-run unexpectedly includes ${forbidden}`)
+    }
+  }
 
   seen.add(packument.name)
   console.log(`${packument.name}@${packument.version} dry-run pack verified`)

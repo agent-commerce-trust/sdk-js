@@ -40,23 +40,23 @@ for (const { dir, manifest, manifestPath } of packages) {
   if (manifest.engines?.node !== '>=20') {
     throw new Error(`${manifest.name} must require Node >=20`)
   }
-  if (manifest.exports?.['.']?.import !== './src/index.js') {
-    throw new Error(`${manifest.name} must export ./src/index.js`)
+  if (manifest.exports?.['.']?.import !== './dist/index.js') {
+    throw new Error(`${manifest.name} must export ./dist/index.js`)
   }
-  if (manifest.exports?.['.']?.types !== './src/index.d.ts') {
-    throw new Error(`${manifest.name} must export ./src/index.d.ts types`)
+  if (manifest.exports?.['.']?.types !== './dist/index.d.ts') {
+    throw new Error(`${manifest.name} must export ./dist/index.d.ts types`)
   }
-  if (manifest.types !== './src/index.d.ts') {
+  if (manifest.types !== './dist/index.d.ts') {
     throw new Error(`${manifest.name} must set top-level types`)
   }
-  if (!manifest.files?.includes('src') || !manifest.files?.includes('README.md')) {
-    throw new Error(`${manifest.name} must publish src and README.md only`)
+  if (!manifest.files?.includes('dist') || !manifest.files?.includes('README.md')) {
+    throw new Error(`${manifest.name} must publish dist and README.md only`)
   }
   if (!existsSync(join(dir, 'README.md'))) {
     throw new Error(`${manifest.name} is missing README.md`)
   }
-  if (!existsSync(join(dir, 'src/index.js')) || !existsSync(join(dir, 'src/index.d.ts'))) {
-    throw new Error(`${manifest.name} is missing JS or type entrypoints`)
+  if (!existsSync(join(dir, 'dist/index.js')) || !existsSync(join(dir, 'dist/index.d.ts'))) {
+    throw new Error(`${manifest.name} is missing built JS or type entrypoints`)
   }
 
   if (phaseOnePackageNames.has(manifest.name)) {
