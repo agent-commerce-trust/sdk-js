@@ -1,0 +1,32 @@
+{
+  "name": "@agent-commerce-trust/commerce-mcp",
+  "version": "0.1.0-rc.0",
+  "description": "Supplier-facing MCP server kit for Agent Commerce Trust.",
+  "author": "Airheart, Inc.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js"
+    }
+  },
+  "types": "./src/index.d.ts",
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "dependencies": {
+    "@agent-commerce-trust/core": "0.1.0-rc.0",
+    "@agent-commerce-trust/supplier": "0.1.0-rc.0",
+    "@ap2-travel/profile": "0.1.0-rc.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

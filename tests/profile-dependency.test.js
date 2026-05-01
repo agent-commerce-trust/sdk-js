@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import { test } from 'node:test'
+
+import {
+  AP2_TRAVEL_PROFILE_ID,
+  assertTravelMandateType,
+  canonicalize,
+  sha256Hex,
+} from '@ap2-travel/profile'
+import { packageRoles } from '@agent-commerce-trust/core'
+
+const phaseOnePackages = ['core', 'agent', 'commerce-mcp', 'supplier', 'verifier']
+
+test('sdk-js consumes @ap2-travel/profile as a package dependency', () => {
+	assert.equal(AP2_TRAVEL_PROFILE_ID, 'ap2-travel')
+	assert.equal(assertTravelMandateType('cart'), 'cart')
+	assert.equal(canonicalize({ b: 2, a: 1 }), '{"a":1,"b":2}')
+	assert.equal(sha256Hex({ mandateType: 'receipt', profile: AP2_TRAVEL_PROFILE_ID }).length, 64)
+})
+
+test('workspace package stub is importable alongside profile dependency', () => {
+	assert.equal(packageRoles.core, 'shared primitives')
+})
+
+test('phase-1 packages declare the AP2 Travel profile prerequisite', async () => {
+	for (const packageDir of phaseOnePackages) {
+		const manifest = JSON.parse(
+			await readFile(new URL(`../packages/${packageDir}/package.json`, import.meta.url), 'utf8'),
+		)
+
+		assert.equal(
+			manifest.dependencies?.['@ap2-travel/profile'],
+			'0.1.0-rc.0',
+			`${manifest.name} must declare @ap2-travel/profile`,
+		)
+	}
+})

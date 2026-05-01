@@ -1,0 +1,30 @@
+{
+  "name": "@agent-commerce-trust/core",
+  "version": "0.1.0-rc.0",
+  "description": "Shared primitives for Agent Commerce Trust packages.",
+  "author": "Airheart, Inc.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js"
+    }
+  },
+  "types": "./src/index.d.ts",
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "dependencies": {
+    "@ap2-travel/profile": "0.1.0-rc.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

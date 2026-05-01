@@ -1,0 +1,24 @@
+{
+  "name": "@agent-commerce-trust/sdk-js",
+  "version": "0.1.0-rc.0",
+  "description": "Workspace for Agent Commerce Trust Layer JavaScript packages.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "pack:dry-run": "node scripts/pack-dry-run.js",
+    "test": "node --test tests/*.test.js",
+    "verify:ci": "npm test && npm run verify:publish && npm run verify:deferred && npm run pack:dry-run",
+    "verify:deferred": "node scripts/verify-deferred-deprecation.js",
+    "verify:publish": "node scripts/verify-publish-readiness.js"
+  },
+  "dependencies": {
+    "@ap2-travel/profile": "file:../ap2-travel/packages/profile"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
