@@ -43,6 +43,9 @@ for (const { dir, manifest, manifestPath } of packages) {
   if (manifest.exports?.['.']?.import !== './dist/index.js') {
     throw new Error(`${manifest.name} must export ./dist/index.js`)
   }
+  if (manifest.exports?.['.']?.require !== './dist/index.cjs') {
+    throw new Error(`${manifest.name} must export ./dist/index.cjs for CommonJS consumers`)
+  }
   if (manifest.exports?.['.']?.types !== './dist/index.d.ts') {
     throw new Error(`${manifest.name} must export ./dist/index.d.ts types`)
   }
@@ -55,13 +58,18 @@ for (const { dir, manifest, manifestPath } of packages) {
   if (!existsSync(join(dir, 'README.md'))) {
     throw new Error(`${manifest.name} is missing README.md`)
   }
-  if (!existsSync(join(dir, 'dist/index.js')) || !existsSync(join(dir, 'dist/index.d.ts'))) {
-    throw new Error(`${manifest.name} is missing built JS or type entrypoints`)
+  if (
+    !existsSync(join(dir, 'dist/index.js')) ||
+    !existsSync(join(dir, 'dist/index.cjs')) ||
+    !existsSync(join(dir, 'dist/index.d.ts')) ||
+    !existsSync(join(dir, 'dist/index.d.cts'))
+  ) {
+    throw new Error(`${manifest.name} is missing built ESM, CJS, or type entrypoints`)
   }
 
   if (phaseOnePackageNames.has(manifest.name)) {
-    if (manifest.dependencies?.['@ap2-travel/profile'] !== expectedVersion) {
-      throw new Error(`${manifest.name} must depend on @ap2-travel/profile@${expectedVersion}`)
+    if (manifest.dependencies?.['@ap2-travel/profile'] !== `^${expectedVersion}`) {
+      throw new Error(`${manifest.name} must depend on @ap2-travel/profile@^${expectedVersion}`)
     }
     if ('deprecationMessage' in manifest) {
       throw new Error(`${manifest.name} must not carry deferred deprecation metadata`)

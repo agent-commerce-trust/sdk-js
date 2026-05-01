@@ -35,13 +35,13 @@ npm run verify:ci
 - workspace package tests
 - publish-readiness metadata checks
 - deferred package deprecation verification
-- dry-run packing for all seven workspace packages
+- publish dry runs for all seven workspace packages
 
 The GitHub workflow runs the same command on pushes to `main`, pull requests, and manual dispatches.
 
 ## Release dry run
 
-This workspace is publish-ready only when `npm run verify:ci` passes from a clean install. The dry run does not publish packages; it executes `npm pack --dry-run --json` for each package and asserts that all five Phase-1 packages plus the two deferred namespace packages are covered.
+This workspace is publish-ready only when `npm run verify:ci` passes from a clean install. The dry run does not publish packages; it executes `npm publish --dry-run --access public --tag rc --json` for each package and asserts that all five Phase-1 packages plus the two deferred namespace packages are covered.
 
 Publishing remains a manual registry operation for this scaffold:
 
@@ -58,6 +58,7 @@ npm publish --workspace @agent-commerce-trust/witness --access public
 After publishing the deferred namespace packages, apply the registry deprecation metadata exactly:
 
 ```bash
-npm deprecate @agent-commerce-trust/agent-mcp@0.1.0-rc.0 "Namespace reserved — package not yet published"
-npm deprecate @agent-commerce-trust/witness@0.1.0-rc.0 "Namespace reserved — package not yet published"
+npm run deprecate:deferred
 ```
+
+See `RELEASING.md` for provenance, npm-scope, and monorepo split criteria.

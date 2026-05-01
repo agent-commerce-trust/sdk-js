@@ -13,7 +13,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     }
   },
   "types": "./dist/index.d.ts",
@@ -22,12 +23,13 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsup src/index.ts --format esm,cjs --dts --sourcemap --clean --out-dir dist",
+    "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@agent-commerce-trust/core": "0.1.0-rc.0",
     "@agent-commerce-trust/supplier": "0.1.0-rc.0",
-    "@ap2-travel/profile": "0.1.0-rc.0"
+    "@ap2-travel/profile": "^0.1.0-rc.0"
   },
   "engines": {
     "node": ">=20"

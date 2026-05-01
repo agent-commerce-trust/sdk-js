@@ -1,0 +1,20 @@
+const assert = require('node:assert/strict')
+const { test } = require('node:test')
+
+const agent = require('@agent-commerce-trust/agent')
+const agentMcp = require('@agent-commerce-trust/agent-mcp')
+const commerceMcp = require('@agent-commerce-trust/commerce-mcp')
+const core = require('@agent-commerce-trust/core')
+const supplier = require('@agent-commerce-trust/supplier')
+const verifier = require('@agent-commerce-trust/verifier')
+const witness = require('@agent-commerce-trust/witness')
+
+test('CommonJS entrypoints expose phase-1 roles and reserved namespace stubs', () => {
+  assert.equal(core.packageRoles.core, 'shared primitives')
+  assert.equal(agent.packageRole, 'agent mandate-chain plumbing')
+  assert.equal(commerceMcp.packageRole, 'supplier MCP server kit')
+  assert.equal(supplier.packageRole, 'supplier primitives')
+  assert.equal(verifier.packageRole, 'receipt verifier')
+  assert.equal(agentMcp.__namespace_reserved, true)
+  assert.equal(witness.__namespace_reserved, true)
+})

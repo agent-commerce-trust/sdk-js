@@ -11,9 +11,12 @@
   "scripts": {
     "build": "npm run build:profile-dependency && npm run build --workspaces --if-present",
     "build:profile-dependency": "node scripts/build-profile-dependency.js",
-    "pack:dry-run": "node scripts/pack-dry-run.js",
-    "test": "npm run build && node --test tests/*.test.js",
-    "verify:ci": "npm test && npm run verify:publish && npm run verify:deferred && npm run pack:dry-run",
+    "deprecate:deferred": "node scripts/deprecate-deferred-stubs.js",
+    "lint": "npm run lint --workspaces --if-present",
+    "publish:dry-run": "node scripts/pack-dry-run.js",
+    "pack:dry-run": "npm run publish:dry-run",
+    "test": "npm run build && node --test tests/*.test.js tests/*.test.cjs",
+    "verify:ci": "npm test && npm run lint && npm run verify:publish && npm run verify:deferred && npm run publish:dry-run",
     "verify:deferred": "node scripts/verify-deferred-deprecation.js",
     "verify:publish": "node scripts/verify-publish-readiness.js"
   },
@@ -22,6 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
+    "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   },
   "engines": {

@@ -31,7 +31,7 @@ test('phase-1 packages declare the AP2 Travel profile prerequisite', async () =>
 
 		assert.equal(
 			manifest.dependencies?.['@ap2-travel/profile'],
-			'0.1.0-rc.0',
+			'^0.1.0-rc.0',
 			`${manifest.name} must declare @ap2-travel/profile`,
 		)
 	}
