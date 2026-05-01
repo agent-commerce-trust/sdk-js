@@ -10,7 +10,12 @@ const verifier = require('@agent-commerce-trust/verifier')
 const witness = require('@agent-commerce-trust/witness')
 
 test('CommonJS entrypoints expose phase-1 roles and reserved namespace stubs', () => {
+  assert.equal(core.packageRole, 'shared primitives')
   assert.equal(core.packageRoles.core, 'shared primitives')
+  assert.equal(core.packageRoles.agent, 'agent mandate-chain plumbing')
+  assert.equal(core.packageRoles.commerceMcp, 'supplier MCP server kit')
+  assert.equal(core.packageRoles.supplier, 'supplier primitives')
+  assert.equal(core.packageRoles.verifier, 'receipt verifier')
   assert.equal(agent.packageRole, 'agent mandate-chain plumbing')
   assert.equal(commerceMcp.packageRole, 'supplier MCP server kit')
   assert.equal(supplier.packageRole, 'supplier primitives')

@@ -8,7 +8,12 @@ import {
   canonicalize,
   sha256Hex,
 } from '@ap2-travel/profile'
-import { packageRoles } from '@agent-commerce-trust/core'
+import {
+	canonicalize as coreCanonicalize,
+	packageRole as corePackageRole,
+	packageRoles,
+	sha256Hex as coreSha256Hex,
+} from '@agent-commerce-trust/core'
 
 const phaseOnePackages = ['core', 'agent', 'commerce-mcp', 'supplier', 'verifier']
 
@@ -20,7 +25,16 @@ test('sdk-js consumes @ap2-travel/profile as a package dependency', () => {
 })
 
 test('workspace package stub is importable alongside profile dependency', () => {
+	assert.equal(corePackageRole, 'shared primitives')
 	assert.equal(packageRoles.core, 'shared primitives')
+})
+
+test('core re-exports canonical serialization helpers from the AP2 Travel profile', () => {
+	assert.equal(coreCanonicalize({ b: 2, a: 1 }), canonicalize({ b: 2, a: 1 }))
+	assert.equal(
+		coreSha256Hex({ mandateType: 'receipt', profile: AP2_TRAVEL_PROFILE_ID }),
+		sha256Hex({ mandateType: 'receipt', profile: AP2_TRAVEL_PROFILE_ID }),
+	)
 })
 
 test('phase-1 packages declare the AP2 Travel profile prerequisite', async () => {
