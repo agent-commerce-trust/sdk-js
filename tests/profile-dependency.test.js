@@ -50,3 +50,20 @@ test('phase-1 packages declare the AP2 Travel profile prerequisite', async () =>
 		)
 	}
 })
+
+test('workspace lockfile tracks the canonical AP2 Travel profile scaffold version', async () => {
+	const [lockfile, profileManifest] = await Promise.all([
+		readJson(new URL('../package-lock.json', import.meta.url)),
+		readJson(new URL('../../ap2-travel/packages/profile/package.json', import.meta.url)),
+	])
+
+	assert.equal(
+		lockfile.packages?.['../ap2-travel/packages/profile']?.version,
+		profileManifest.version,
+		'local file dependency lock entry must match canonical @ap2-travel/profile',
+	)
+})
+
+async function readJson(url) {
+	return JSON.parse(await readFile(url, 'utf8'))
+}
