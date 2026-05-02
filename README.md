@@ -1,6 +1,6 @@
 # Agent Commerce Trust SDK JS
 
-Local scaffold for the seven-package Trust Layer JavaScript workspace.
+Canonical workspace for the seven-package Trust Layer JavaScript SDK.
 
 Phase-1 packages:
 
@@ -43,7 +43,7 @@ The GitHub workflow runs the same command on pushes to `main`, pull requests, an
 
 This workspace is publish-ready only when `npm run verify:ci` passes from a clean install. The dry run does not publish packages; it executes `npm publish --dry-run --access public --tag rc --json` for each package and asserts that all five Phase-1 packages plus the two deferred namespace packages are covered.
 
-Publishing remains a manual registry operation for this scaffold:
+Publishing remains a manual registry operation until release automation is explicitly approved:
 
 ```bash
 npm publish --workspace @agent-commerce-trust/core --access public

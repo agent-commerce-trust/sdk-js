@@ -14,6 +14,20 @@ import {
 const packages = listWorkspacePackages()
 const seen = new Set()
 
+for (const requiredPath of [
+  'README.md',
+  'RELEASING.md',
+  'CHANGELOG.md',
+  'SECURITY.md',
+  'CONTRIBUTING.md',
+  'CODE_OF_CONDUCT.md',
+  'GOVERNANCE.md',
+]) {
+  if (!existsSync(requiredPath)) {
+    throw new Error(`public repository scaffold is missing ${requiredPath}`)
+  }
+}
+
 for (const { dir, manifest, manifestPath } of packages) {
   seen.add(manifest.name)
 
