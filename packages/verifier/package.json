@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@agent-commerce-trust/core": "0.1.0-rc.0",
-    "@ap2-travel/profile": "^0.1.0-rc.0"
+    "@ap2-travel/profile": "^0.1.0-rc.1"
   },
   "engines": {
     "node": ">=20"

@@ -8,7 +8,7 @@ This workspace publishes the seven `@agent-commerce-trust/*` packages from the c
 - The `@ap2-travel` npm org is owned by an Airheart-controlled account and uses the same publish-token controls as `@agent-commerce-trust`.
 - CI publish tokens are npm automation tokens with publish rights only for the two scopes.
 - GitHub Actions release jobs use OIDC and `npm publish --provenance` for SLSA provenance attestations.
-- `@ap2-travel/profile@0.1.0-rc.0` is published from the canonical `agent-commerce-trust/ap2-travel` repository before publishing this workspace without the local `file:` dependency.
+- `@ap2-travel/profile@0.1.0-rc.1` is published from the canonical `agent-commerce-trust/ap2-travel` repository before publishing this workspace without the local `file:` dependency.
 
 ## Local Verification
 

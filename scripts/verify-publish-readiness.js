@@ -5,6 +5,7 @@ import {
   deferredPackageNames,
   expectedDeprecationMessage,
   expectedPackageNames,
+  expectedProfileVersion,
   expectedVersion,
   listWorkspacePackages,
   phaseOnePackageNames,
@@ -68,8 +69,8 @@ for (const { dir, manifest, manifestPath } of packages) {
   }
 
   if (phaseOnePackageNames.has(manifest.name)) {
-    if (manifest.dependencies?.['@ap2-travel/profile'] !== `^${expectedVersion}`) {
-      throw new Error(`${manifest.name} must depend on @ap2-travel/profile@^${expectedVersion}`)
+    if (manifest.dependencies?.['@ap2-travel/profile'] !== `^${expectedProfileVersion}`) {
+      throw new Error(`${manifest.name} must depend on @ap2-travel/profile@^${expectedProfileVersion}`)
     }
     if ('deprecationMessage' in manifest) {
       throw new Error(`${manifest.name} must not carry deferred deprecation metadata`)

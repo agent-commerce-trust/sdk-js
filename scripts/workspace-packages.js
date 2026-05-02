@@ -40,4 +40,5 @@ export const expectedPackageNames = new Set([
 ])
 
 export const expectedVersion = '0.1.0-rc.0'
+export const expectedProfileVersion = '0.1.0-rc.1'
 export const expectedDeprecationMessage = 'Namespace reserved — package not yet published'
