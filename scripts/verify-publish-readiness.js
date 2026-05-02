@@ -68,6 +68,15 @@ for (const { dir, manifest, manifestPath } of packages) {
     throw new Error(`${manifest.name} is missing built ESM, CJS, or type entrypoints`)
   }
 
+  for (const [dependencyName, dependencyVersion] of Object.entries(manifest.dependencies ?? {})) {
+    if (deferredPackageNames.has(dependencyName)) {
+      throw new Error(`${manifest.name} must not depend on deferred namespace package ${dependencyName}`)
+    }
+    if (phaseOnePackageNames.has(dependencyName) && dependencyVersion !== expectedVersion) {
+      throw new Error(`${manifest.name} must depend on ${dependencyName}@${expectedVersion}`)
+    }
+  }
+
   if (phaseOnePackageNames.has(manifest.name)) {
     if (manifest.dependencies?.['@ap2-travel/profile'] !== `^${expectedProfileVersion}`) {
       throw new Error(`${manifest.name} must depend on @ap2-travel/profile@^${expectedProfileVersion}`)
@@ -80,6 +89,9 @@ for (const { dir, manifest, manifestPath } of packages) {
   if (deferredPackageNames.has(manifest.name)) {
     if (manifest.deprecationMessage !== expectedDeprecationMessage) {
       throw new Error(`${manifest.name} must carry the deferred deprecation message`)
+    }
+    if (Object.keys(manifest.dependencies ?? {}).length > 0) {
+      throw new Error(`${manifest.name} is a deferred namespace stub and must not declare runtime dependencies`)
     }
     if (manifest.dependencies?.['@ap2-travel/profile']) {
       throw new Error(`${manifest.name} must not present itself as a Phase-1 AP2 profile package`)
