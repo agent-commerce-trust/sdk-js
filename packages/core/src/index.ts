@@ -9,3 +9,5 @@ export const packageRoles = Object.freeze({
 } as const)
 
 export { canonicalize, canonicalBytes, sha256Hex } from '@ap2-travel/profile'
+
+export type * from './types/index.js'

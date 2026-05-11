@@ -1,0 +1,25 @@
+export type KeyPurpose =
+  | 'sign-offer'
+  | 'sign-confirmation'
+  | 'sign-cancellation-proof'
+  | 'sign-intent-mandate'
+  | 'sign-cart-mandate'
+  | 'sign-payment-mandate'
+  | 'sign-display-attestation'
+  | 'sign-witness-sth'
+  | 'sign-log-entry'
+  | 'sign-log-sth'
+  | 'sign-trust-root-update'
+  | 'sign-commerce-response'
+  | 'sign-takeover-authorization-mandate'
+  | 'sign-takeover-intervention-mandate'
+  | 'sign-document-access-grant'
+  | 'sign-deletion-request'
+  | 'sign-deletion-request-completion'
+  | 'sign-commerce-invoice'
+  | 'sign-commerce-invoice-state-change'
+  | 'sign-safety-posture-attestation'
+  | 'derive-principal-pepper'
+
+export type SigningKeyPurpose = Exclude<KeyPurpose, 'derive-principal-pepper'>
+export type DeriveKeyPurpose = Extract<KeyPurpose, 'derive-principal-pepper'>
