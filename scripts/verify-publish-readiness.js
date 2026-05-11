@@ -102,10 +102,19 @@ for (const { dir, manifest, manifestPath } of packages) {
       if (manifest.dependencies?.['@ap2-travel/profile'] !== `^${expectedProfileVersion}`) {
         throw new Error(`${manifest.name} must depend on @ap2-travel/profile@^${expectedProfileVersion}`)
       }
-    } else if (manifest.dependencies?.['@ap2-travel/profile']) {
-      throw new Error(
-        `${manifest.name} must remain profile-neutral (Invariant A); remove @ap2-travel/profile from dependencies`,
-      )
+    } else {
+      // Core: assert profile-neutrality across every dep map and every
+      // @ap2-travel/* package (not just /profile). Catches future profile
+      // siblings (e.g. @ap2-travel/fixtures) creeping in unnoticed.
+      for (const depMapName of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
+        for (const depName of Object.keys(manifest[depMapName] ?? {})) {
+          if (depName.startsWith('@ap2-travel/')) {
+            throw new Error(
+              `${manifest.name} must remain profile-neutral (Invariant A); remove ${depName} from ${depMapName}`,
+            )
+          }
+        }
+      }
     }
     if ('deprecationMessage' in manifest) {
       throw new Error(`${manifest.name} must not carry deferred deprecation metadata`)
