@@ -18,7 +18,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 
 GlobalRegistrator.register()
 
-// Imports must come AFTER registration so that the package's top-level
+// Imports must come AFTER registration so the package's top-level
 // initialization sees happy-dom's globalThis (TextEncoder, crypto, etc.)
 const assertModule = await import('node:assert/strict')
 const assert = assertModule.default
@@ -29,6 +29,7 @@ const {
 	sha256Hex,
 	sha384Hex,
 } = await import('@agent-commerce-trust/core')
+const { canonicalReferenceFixtures } = await import('./_fixtures/canonical-fixtures.mjs')
 
 after(() => {
 	// Restore Node's default globals when this suite finishes so subsequent
@@ -36,36 +37,38 @@ after(() => {
 	GlobalRegistrator.unregister()
 })
 
-test('[browser] canonicalize produces RFC 8785-shaped output under happy-dom', () => {
-	assert.equal(canonicalize({ b: 2, a: 1 }), '{"a":1,"b":2}')
-	assert.equal(
-		canonicalize({ items: [{ y: 2, x: 1 }] }),
-		'{"items":[{"x":1,"y":2}]}',
-	)
+test('[browser] canonicalize matches every shared reference fixture under happy-dom', () => {
+	for (const fixture of canonicalReferenceFixtures) {
+		assert.equal(
+			canonicalize(fixture.input),
+			fixture.canonical,
+			`canonicalize mismatch for fixture '${fixture.name}'`,
+		)
+	}
 })
 
-test('[browser] canonicalBytes returns a Uint8Array via the registered TextEncoder', () => {
+test('[browser] canonicalBytes returns a Uint8Array via happy-dom TextEncoder', () => {
 	const bytes = canonicalBytes({ a: 1 })
 	assert.ok(bytes instanceof Uint8Array)
 	assert.equal(new TextDecoder().decode(bytes), '{"a":1}')
 })
 
-test('[browser] sha256Hex uses happy-dom WebCrypto and matches the hardcoded fixture', async () => {
-	// Same fixture as tests/core-canonical.test.js so any divergence between
-	// Node-native WebCrypto and happy-dom's WebCrypto surfaces here.
-	const hash = await sha256Hex({ a: 1, b: 2 })
-	assert.equal(hash, '43258cff783fe7036d8a43033f830adfc60ec037382473548ac742b888292777')
+test('[browser] sha256Hex matches every shared reference fixture under happy-dom WebCrypto', async () => {
+	for (const fixture of canonicalReferenceFixtures) {
+		assert.equal(
+			await sha256Hex(fixture.input),
+			fixture.sha256,
+			`sha256Hex mismatch for fixture '${fixture.name}'`,
+		)
+	}
 })
 
-test('[browser] sha384Hex uses happy-dom WebCrypto and matches the hardcoded fixture', async () => {
-	const hash = await sha384Hex({ a: 1, b: 2 })
-	assert.equal(
-		hash,
-		'5b5061937d9429347654a4a661c91ebd23a83dd2233309e3d1a9eaab2085f2399ddfaee0fccfb405324e6bb5e008400b',
-	)
-})
-
-test('[browser] sha256Hex of empty-object matches hardcoded fixture', async () => {
-	const hash = await sha256Hex({})
-	assert.equal(hash, '44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a')
+test('[browser] sha384Hex matches every shared reference fixture under happy-dom WebCrypto', async () => {
+	for (const fixture of canonicalReferenceFixtures) {
+		assert.equal(
+			await sha384Hex(fixture.input),
+			fixture.sha384,
+			`sha384Hex mismatch for fixture '${fixture.name}'`,
+		)
+	}
 })

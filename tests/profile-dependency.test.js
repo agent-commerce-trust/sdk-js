@@ -10,8 +10,6 @@ import {
 } from '@ap2-travel/profile'
 import {
 	canonicalize as coreCanonicalize,
-	packageRole as corePackageRole,
-	packageRoles,
 	sha256Hex as coreSha256Hex,
 } from '@agent-commerce-trust/core'
 
@@ -27,11 +25,6 @@ test('sdk-js consumes @ap2-travel/profile as a package dependency', () => {
 	assert.equal(assertTravelMandateType('cart'), 'cart')
 	assert.equal(canonicalize({ b: 2, a: 1 }), '{"a":1,"b":2}')
 	assert.equal(sha256Hex({ mandateType: 'receipt', profile: AP2_TRAVEL_PROFILE_ID }).length, 64)
-})
-
-test('workspace package stub is importable alongside profile dependency', () => {
-	assert.equal(corePackageRole, 'shared primitives')
-	assert.equal(packageRoles.core, 'shared primitives')
 })
 
 test('core canonical helpers produce identical bytes to the AP2 Travel profile reference', async () => {

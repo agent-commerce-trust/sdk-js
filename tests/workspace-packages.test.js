@@ -4,18 +4,30 @@ import { test } from 'node:test'
 import { packageRole as agentRole } from '@agent-commerce-trust/agent'
 import { __namespace_reserved as agentMcpReserved } from '@agent-commerce-trust/agent-mcp'
 import { packageRole as commerceMcpRole } from '@agent-commerce-trust/commerce-mcp'
-import { packageRole as coreRole, packageRoles } from '@agent-commerce-trust/core'
+import {
+  canonicalize as coreCanonicalize,
+  sha256Hex as coreSha256Hex,
+  TrustLayerError,
+  KeyProviderError,
+  KeyNotFoundError,
+} from '@agent-commerce-trust/core'
 import { packageRole as supplierRole } from '@agent-commerce-trust/supplier'
 import { packageRole as verifierRole } from '@agent-commerce-trust/verifier'
 import { __namespace_reserved as witnessReserved } from '@agent-commerce-trust/witness'
 
-test('phase-1 packages expose package roles', () => {
-  assert.equal(coreRole, 'shared primitives')
-  assert.equal(packageRoles.core, 'shared primitives')
-  assert.equal(packageRoles.agent, 'agent mandate-chain plumbing')
-  assert.equal(packageRoles.commerceMcp, 'supplier MCP server kit')
-  assert.equal(packageRoles.supplier, 'supplier primitives')
-  assert.equal(packageRoles.verifier, 'receipt verifier')
+test('core exposes the rc.1 public surface (canonical helpers + error hierarchy)', async () => {
+  // Per Invariant E of TRUST_LAYER_SDK_PUBLIC_BUILDOUT, every public export
+  // on core at rc.1 traces to §5.1 buildout-entry criteria or §7 normative
+  // contract. Scaffold `packageRole`/`packageRoles` metadata is gone.
+  assert.equal(coreCanonicalize({ b: 2, a: 1 }), '{"a":1,"b":2}')
+  assert.equal((await coreSha256Hex({ a: 1, b: 2 })).length, 64)
+  const err = new KeyNotFoundError('test')
+  assert.equal(err.code, 'key-not-found')
+  assert.ok(err instanceof KeyProviderError)
+  assert.ok(err instanceof TrustLayerError)
+})
+
+test('non-core phase-1 packages expose package roles (scaffold metadata; pre-rc.1)', () => {
   assert.equal(commerceMcpRole, 'supplier MCP server kit')
   assert.equal(supplierRole, 'supplier primitives')
   assert.equal(verifierRole, 'receipt verifier')
