@@ -92,8 +92,20 @@ for (const { dir, manifest, manifestPath } of packages) {
   }
 
   if (phaseOnePackageNames.has(manifest.name)) {
-    if (manifest.dependencies?.['@ap2-travel/profile'] !== `^${expectedProfileVersion}`) {
-      throw new Error(`${manifest.name} must depend on @ap2-travel/profile@^${expectedProfileVersion}`)
+    // `@agent-commerce-trust/core` is intentionally profile-neutral per
+    // Invariant A of TRUST_LAYER_SDK_PUBLIC_BUILDOUT and §7.1 of the canonical
+    // SDK doc: profiles depend on core, never the reverse. All other Phase-1
+    // packages currently depend on the AP2-Travel profile as a vertical
+    // extension; the post-Option-A architecture will narrow this further
+    // (profile rc.2 imports from core) per Track 2 of the buildout spec.
+    if (manifest.name !== '@agent-commerce-trust/core') {
+      if (manifest.dependencies?.['@ap2-travel/profile'] !== `^${expectedProfileVersion}`) {
+        throw new Error(`${manifest.name} must depend on @ap2-travel/profile@^${expectedProfileVersion}`)
+      }
+    } else if (manifest.dependencies?.['@ap2-travel/profile']) {
+      throw new Error(
+        `${manifest.name} must remain profile-neutral (Invariant A); remove @ap2-travel/profile from dependencies`,
+      )
     }
     if ('deprecationMessage' in manifest) {
       throw new Error(`${manifest.name} must not carry deferred deprecation metadata`)

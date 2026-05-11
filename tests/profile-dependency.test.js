@@ -15,7 +15,12 @@ import {
 	sha256Hex as coreSha256Hex,
 } from '@agent-commerce-trust/core'
 
-const phaseOnePackages = ['core', 'agent', 'commerce-mcp', 'supplier', 'verifier']
+// Phase-1 packages that depend on @ap2-travel/profile as a vertical-profile
+// extension. `core` is intentionally excluded — per `Invariant A` of the
+// TRUST_LAYER_SDK_PUBLIC_BUILDOUT spec (and §7.1 of the canonical SDK doc),
+// `@agent-commerce-trust/core` is profile-neutral: profiles depend on core,
+// never the reverse.
+const profileConsumingPhaseOnePackages = ['agent', 'commerce-mcp', 'supplier', 'verifier']
 
 test('sdk-js consumes @ap2-travel/profile as a package dependency', () => {
 	assert.equal(AP2_TRAVEL_PROFILE_ID, 'ap2-travel')
@@ -29,16 +34,32 @@ test('workspace package stub is importable alongside profile dependency', () => 
 	assert.equal(packageRoles.core, 'shared primitives')
 })
 
-test('core re-exports canonical serialization helpers from the AP2 Travel profile', () => {
-	assert.equal(coreCanonicalize({ b: 2, a: 1 }), canonicalize({ b: 2, a: 1 }))
+test('core canonical helpers produce identical bytes to the AP2 Travel profile reference', async () => {
+	const sample = { b: 2, a: 1, nested: { z: 'last', a: 'first' } }
+	assert.equal(coreCanonicalize(sample), canonicalize(sample))
 	assert.equal(
-		coreSha256Hex({ mandateType: 'receipt', profile: AP2_TRAVEL_PROFILE_ID }),
+		await coreSha256Hex({ mandateType: 'receipt', profile: AP2_TRAVEL_PROFILE_ID }),
 		sha256Hex({ mandateType: 'receipt', profile: AP2_TRAVEL_PROFILE_ID }),
 	)
 })
 
-test('phase-1 packages declare the AP2 Travel profile prerequisite', async () => {
-	for (const packageDir of phaseOnePackages) {
+test('core is profile-neutral — no @ap2-travel/* in runtime deps (Invariant A)', async () => {
+	const manifest = JSON.parse(
+		await readFile(new URL('../packages/core/package.json', import.meta.url), 'utf8'),
+	)
+	for (const depMap of [manifest.dependencies, manifest.peerDependencies, manifest.optionalDependencies]) {
+		for (const dep of Object.keys(depMap ?? {})) {
+			assert.equal(
+				dep.startsWith('@ap2-travel/'),
+				false,
+				`@agent-commerce-trust/core must not depend on ${dep} (Invariant A — profile-neutral core)`,
+			)
+		}
+	}
+})
+
+test('profile-consuming phase-1 packages declare the AP2 Travel profile prerequisite', async () => {
+	for (const packageDir of profileConsumingPhaseOnePackages) {
 		const manifest = JSON.parse(
 			await readFile(new URL(`../packages/${packageDir}/package.json`, import.meta.url), 'utf8'),
 		)

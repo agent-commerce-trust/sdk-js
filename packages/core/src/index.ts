@@ -8,7 +8,12 @@ export const packageRoles = Object.freeze({
   verifier: 'receipt verifier',
 } as const)
 
-export { canonicalize, canonicalBytes, sha256Hex } from '@ap2-travel/profile'
+export {
+  canonicalize,
+  canonicalBytes,
+  sha256Hex,
+  sha384Hex,
+} from './canonical.js'
 
 export type * from './types/index.js'
 
