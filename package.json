@@ -16,7 +16,8 @@
     "publish:dry-run": "node scripts/pack-dry-run.js",
     "pack:dry-run": "npm run publish:dry-run",
     "test": "npm run build && node --test tests/*.test.js tests/*.test.cjs",
-    "verify:ci": "npm test && npm run lint && npm run verify:publish && npm run verify:deferred && npm run publish:dry-run",
+    "test:browser": "node --test tests/*.browser.test.mjs",
+    "verify:ci": "npm test && npm run test:browser && npm run lint && npm run verify:publish && npm run verify:deferred && npm run publish:dry-run",
     "verify:deferred": "node scripts/verify-deferred-deprecation.js",
     "verify:publish": "node scripts/verify-publish-readiness.js"
   },
@@ -24,7 +25,9 @@
     "@ap2-travel/profile": "file:../ap2-travel/packages/profile"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^20.9.0",
     "@types/node": "^25.6.0",
+    "happy-dom": "^20.9.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   },
