@@ -143,13 +143,18 @@ test('Signing the same payload twice yields independently-verifiable signatures'
 		payloadType: 'commerce.Offer/v1',
 		purpose: 'sign-offer',
 	})
-	// Non-determinism: ECDSA generates fresh randomness per sign, so the same
-	// inputs MUST produce different signature bytes. (If they collided the
-	// underlying CSPRNG would be broken.)
+	// Non-determinism: standard WebCrypto ECDSA generates fresh randomness
+	// per sign (RFC 6979 nonces are NOT used by the WebCrypto spec), so the
+	// same inputs MUST produce different signature bytes on a conforming
+	// implementation. A CSPRNG collision would also fail this — practical
+	// odds are negligible. NOTE: a deterministic-ECDSA fork (FIPS profile
+	// pinning to RFC 6979, or a hardened-RNG mock) would legitimately
+	// collide here; if a target environment ever lands one, relax this
+	// assertion to require signatures verify, not that they differ.
 	assert.notDeepEqual(
 		Array.from(ecResultA.signature),
 		Array.from(ecResultB.signature),
-		'ECDSA_P256 signatures of identical inputs must differ (non-deterministic signing)',
+		'ECDSA_P256 signatures of identical inputs must differ on a non-deterministic WebCrypto implementation',
 	)
 	// Both ECDSA signatures must verify even though the bytes differ.
 	const edPub = await provider.getPublicKey(edRef.keyId)
