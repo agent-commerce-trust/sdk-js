@@ -94,6 +94,47 @@ test('validateIntentMandate throws MandateError when expiresAt is at or before i
 	assert.throws(() => validateIntentMandate(earlier), MandateError)
 })
 
+test('validateIntentMandate throws MandateError for non-strict-ISO-8601 timestamps', () => {
+	// Date.parse accepts many permissive forms; the validator must reject
+	// anything that isn't the strict YYYY-MM-DDTHH:MM:SS[.fff]{Z|±HH:MM}
+	// instant form. Lock this down so canonical-JSON serialisation stays
+	// byte-identical across producers.
+	const intent = createIntentMandate({}, baseIntentOpts())
+	const malformed = [
+		'2026/01/01 00:00:00', // slash separators + space
+		'2026-01-01 00:00:00Z', // space instead of T
+		'2026-01-01', // date only
+		'Jan 1, 2026', // locale string
+		'2026-01-01T00:00:00', // missing timezone
+		'not-a-date',
+		'',
+	]
+	for (const bad of malformed) {
+		assert.throws(
+			() => validateIntentMandate({ ...intent, issuedAt: bad }),
+			MandateError,
+			`expected validateIntentMandate to reject issuedAt='${bad}'`,
+		)
+		assert.throws(
+			() => validateIntentMandate({ ...intent, expiresAt: bad }),
+			MandateError,
+			`expected validateIntentMandate to reject expiresAt='${bad}'`,
+		)
+	}
+})
+
+test('validateIntentMandate accepts strict ISO 8601 with numeric offset (+HH:MM)', () => {
+	// Negative regression for the regex: the same instant in a non-Z offset
+	// form must still validate.
+	const intent = createIntentMandate({}, baseIntentOpts())
+	const offsetForm = {
+		...intent,
+		issuedAt: '2026-01-01T00:00:00+05:30',
+		expiresAt: '2026-01-01T00:15:00+05:30',
+	}
+	validateIntentMandate(offsetForm)
+})
+
 test('validateIntentMandate throws MandateError when a required field is missing', () => {
 	const intent = createIntentMandate({}, baseIntentOpts())
 	for (const field of ['nonce', 'issuedAt', 'expiresAt', 'issuer', 'correlationID']) {

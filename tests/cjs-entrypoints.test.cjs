@@ -11,14 +11,15 @@ const verifier = require('@agent-commerce-trust/verifier')
 const witness = require('@agent-commerce-trust/witness')
 
 test('CommonJS entrypoint for core exposes the real rc.1 public surface', async () => {
-  // Canonical + hashing helpers (PR 3 surface)
+  // Canonical + hashing helpers
   assert.equal(typeof core.canonicalize, 'function')
   assert.equal(typeof core.canonicalBytes, 'function')
   assert.equal(typeof core.sha256Hex, 'function')
   assert.equal(typeof core.sha384Hex, 'function')
   assert.equal(core.canonicalize({ b: 2, a: 1 }), '{"a":1,"b":2}')
 
-  // Error hierarchy (PR 2 surface) — discriminate via instanceof per §7.1 rule
+  // Error hierarchy — discriminate via instanceof per the canonical
+  // §7.1 rule; never via string matching on message or code.
   assert.equal(typeof core.TrustLayerError, 'function')
   assert.equal(typeof core.KeyProviderError, 'function')
   assert.equal(typeof core.KeyPurposePayloadTypeMismatchError, 'function')
@@ -27,7 +28,7 @@ test('CommonJS entrypoint for core exposes the real rc.1 public surface', async 
   assert.ok(err instanceof core.KeyProviderError)
   assert.ok(err instanceof core.TrustLayerError)
 
-  // payloadType → purpose mapping (the prior PR 5 runtime surface)
+  // payloadType → purpose mapping + validator
   assert.ok(core.PAYLOAD_TYPE_PURPOSE_MAP instanceof Map)
   assert.equal(typeof core.validatePayloadTypePurpose, 'function')
   assert.equal(
@@ -35,7 +36,10 @@ test('CommonJS entrypoint for core exposes the real rc.1 public surface', async 
     'sign-intent-mandate',
   )
 
-  // AP2 mandate helpers (the prior PR 7 runtime surface)
+  // Domain-separated signing-input helper
+  assert.equal(typeof core.buildSigningInput, 'function')
+
+  // AP2 base mandate construction + validation
   assert.equal(typeof core.createIntentMandate, 'function')
   assert.equal(typeof core.validateIntentMandate, 'function')
   assert.equal(typeof core.createCartMandate, 'function')
@@ -51,7 +55,8 @@ test('CommonJS entrypoint for core exposes the real rc.1 public surface', async 
 })
 
 test('CommonJS entrypoint for @agent-commerce-trust/core/dev resolves and exposes InMemoryKeyProvider', async () => {
-  // /dev subpath resolution check (PR 6 exit gate: ESM + CJS coverage).
+  // /dev subpath resolution must work under both ESM and CJS so test/dev
+  // consumers can import the in-memory provider from either world.
   assert.equal(typeof coreDev.InMemoryKeyProvider, 'function')
   const provider = new coreDev.InMemoryKeyProvider({ providerId: 'cjs-test' })
   assert.equal(provider.providerId, 'cjs-test')

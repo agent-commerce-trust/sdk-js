@@ -46,6 +46,16 @@ export function validateIntentMandate(value: unknown): asserts value is IntentMa
 }
 
 /**
+ * Strict ISO 8601 pattern. Matches `Date.prototype.toISOString()` output —
+ * `YYYY-MM-DDTHH:MM:SS[.fff…]Z` — and the equivalent shape with a numeric
+ * timezone offset `±HH:MM`. Permissive forms accepted by `Date.parse` but
+ * NOT by this pattern: slash separators (`2026/01/01`), space-separated
+ * date+time (`2026-01-01 00:00:00`), date-only (`2026-01-01`), unanchored
+ * input, and locale strings like `Jan 1, 2026`.
+ */
+const ISO_8601_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/
+
+/**
  * Shared shape check for any mandate envelope. Verifies presence + types of
  * the AP2 metadata fields and the payloadType discriminator. Throws
  * MandateError on any failure. Specific validators (intent/cart/payment)
@@ -73,17 +83,28 @@ export function assertEnvelopeShape(value: unknown, expectedPayloadType: string)
 	if (v.principal !== undefined && typeof v.principal !== 'string') {
 		throw new MandateError(`mandate field 'principal' must be a string when present`)
 	}
-	const issuedAt = Date.parse(v.issuedAt as string)
-	const expiresAt = Date.parse(v.expiresAt as string)
-	if (Number.isNaN(issuedAt)) {
-		throw new MandateError(`mandate field 'issuedAt' is not a parseable ISO 8601 timestamp`)
+	const issuedAtStr = v.issuedAt as string
+	const expiresAtStr = v.expiresAt as string
+	if (!ISO_8601_INSTANT.test(issuedAtStr)) {
+		throw new MandateError(
+			`mandate field 'issuedAt' must be a strict ISO 8601 instant (YYYY-MM-DDTHH:MM:SS[.fff]{Z|±HH:MM}), got '${issuedAtStr}'`,
+		)
 	}
-	if (Number.isNaN(expiresAt)) {
-		throw new MandateError(`mandate field 'expiresAt' is not a parseable ISO 8601 timestamp`)
+	if (!ISO_8601_INSTANT.test(expiresAtStr)) {
+		throw new MandateError(
+			`mandate field 'expiresAt' must be a strict ISO 8601 instant (YYYY-MM-DDTHH:MM:SS[.fff]{Z|±HH:MM}), got '${expiresAtStr}'`,
+		)
+	}
+	const issuedAt = Date.parse(issuedAtStr)
+	const expiresAt = Date.parse(expiresAtStr)
+	if (Number.isNaN(issuedAt) || Number.isNaN(expiresAt)) {
+		// Shouldn't reach: the regex above accepts a superset of parseable
+		// instants, so any string that passed the regex must also parse.
+		throw new MandateError(`mandate timestamps failed Date.parse after ISO 8601 regex acceptance`)
 	}
 	if (expiresAt <= issuedAt) {
 		throw new MandateError(
-			`mandate field 'expiresAt' (${v.expiresAt}) must be strictly after 'issuedAt' (${v.issuedAt})`,
+			`mandate field 'expiresAt' (${expiresAtStr}) must be strictly after 'issuedAt' (${issuedAtStr})`,
 		)
 	}
 }

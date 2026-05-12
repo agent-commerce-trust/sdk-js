@@ -17,29 +17,45 @@
 import { KeyPurposePayloadTypeMismatchError } from '../errors.js'
 import type { KeyPurpose } from '../types/key-purpose.js'
 
-export const PAYLOAD_TYPE_PURPOSE_MAP: ReadonlyMap<string, KeyPurpose> = new Map<string, KeyPurpose>([
-	['ap2.IntentMandate/v1', 'sign-intent-mandate'],
-	['ap2.CartMandate/v1', 'sign-cart-mandate'],
-	['ap2.PaymentMandate/v1', 'sign-payment-mandate'],
-	['commerce.Offer/v1', 'sign-offer'],
-	['commerce.Confirmation/v1', 'sign-confirmation'],
-	['commerce.CancellationProof/v1', 'sign-cancellation-proof'],
-	['commerce.ToolResponse/v1', 'sign-commerce-response'],
-	['display.Attestation/v1', 'sign-display-attestation'],
-	['display.RenderAttestation/v1', 'sign-display-attestation'],
-	['log.Entry/v1', 'sign-log-entry'],
-	['log.STH/v1', 'sign-log-sth'],
-	['witness.Observation/v1', 'sign-witness-sth'],
-	['takeover.AuthorizationMandate/v1', 'sign-takeover-authorization-mandate'],
-	['takeover.InterventionMandate/v1', 'sign-takeover-intervention-mandate'],
-	['permissions.DocumentAccessGrant/v1', 'sign-document-access-grant'],
-	['permissions.DeletionRequest/v1', 'sign-deletion-request'],
-	['permissions.DeletionRequestCompletion/v1', 'sign-deletion-request-completion'],
-	['commerce.Invoice/v1', 'sign-commerce-invoice'],
-	['commerce.InvoiceStateChange/v1', 'sign-commerce-invoice-state-change'],
-	['safety.PostureAttestation/v1', 'sign-safety-posture-attestation'],
-	['trust-root.Update/v1', 'sign-trust-root-update'],
-])
+function freezeMap<K, V>(map: Map<K, V>): ReadonlyMap<K, V> {
+	const throwReadonly = (): never => {
+		throw new TypeError('PAYLOAD_TYPE_PURPOSE_MAP is read-only; the normative mapping is frozen at module load')
+	}
+	// Override the mutating methods to throw, then freeze the instance so the
+	// overrides themselves cannot be replaced. The declared type ReadonlyMap
+	// hides set/delete/clear at compile time; this layer enforces it at runtime.
+	;(map as Map<K, V>).set = throwReadonly as unknown as Map<K, V>['set']
+	;(map as Map<K, V>).delete = throwReadonly as unknown as Map<K, V>['delete']
+	;(map as Map<K, V>).clear = throwReadonly as unknown as Map<K, V>['clear']
+	Object.freeze(map)
+	return map
+}
+
+export const PAYLOAD_TYPE_PURPOSE_MAP: ReadonlyMap<string, KeyPurpose> = freezeMap(
+	new Map<string, KeyPurpose>([
+		['ap2.IntentMandate/v1', 'sign-intent-mandate'],
+		['ap2.CartMandate/v1', 'sign-cart-mandate'],
+		['ap2.PaymentMandate/v1', 'sign-payment-mandate'],
+		['commerce.Offer/v1', 'sign-offer'],
+		['commerce.Confirmation/v1', 'sign-confirmation'],
+		['commerce.CancellationProof/v1', 'sign-cancellation-proof'],
+		['commerce.ToolResponse/v1', 'sign-commerce-response'],
+		['display.Attestation/v1', 'sign-display-attestation'],
+		['display.RenderAttestation/v1', 'sign-display-attestation'],
+		['log.Entry/v1', 'sign-log-entry'],
+		['log.STH/v1', 'sign-log-sth'],
+		['witness.Observation/v1', 'sign-witness-sth'],
+		['takeover.AuthorizationMandate/v1', 'sign-takeover-authorization-mandate'],
+		['takeover.InterventionMandate/v1', 'sign-takeover-intervention-mandate'],
+		['permissions.DocumentAccessGrant/v1', 'sign-document-access-grant'],
+		['permissions.DeletionRequest/v1', 'sign-deletion-request'],
+		['permissions.DeletionRequestCompletion/v1', 'sign-deletion-request-completion'],
+		['commerce.Invoice/v1', 'sign-commerce-invoice'],
+		['commerce.InvoiceStateChange/v1', 'sign-commerce-invoice-state-change'],
+		['safety.PostureAttestation/v1', 'sign-safety-posture-attestation'],
+		['trust-root.Update/v1', 'sign-trust-root-update'],
+	]),
+)
 
 /**
  * Validate that a `payloadType` and a `purpose` are coordinated per the

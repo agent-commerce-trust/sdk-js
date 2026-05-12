@@ -15,3 +15,6 @@ export {
   PAYLOAD_TYPE_PURPOSE_MAP,
   validatePayloadTypePurpose,
 } from './payload-type-mapping.js'
+
+export { buildSigningInput } from './signing-input.js'
+export type { SigningInputParts } from './signing-input.js'

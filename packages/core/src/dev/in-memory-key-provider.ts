@@ -12,8 +12,9 @@
  *     and the signing key.
  *
  * Production deployments must use one of the `@agent-commerce-trust/core/providers`
- * implementations (Aws/Gcp/Azure KMS, PKCS#11, FIDO2, RemoteSigner) shipping
- * post-rc.1 per the buildout invariants.
+ * implementations (Aws/Gcp/Azure KMS, PKCS#11, FIDO2, RemoteSigner). The
+ * `/providers` subpath in `package.json` is reserved (null-exports) at rc.1
+ * and ships its first concrete provider in a subsequent rc.
  *
  * The provider implements the `KeyProvider` interface from
  * `docs/domains/auth/trust-layer-sdk.md` §7.1 plus a provisioning
@@ -23,6 +24,7 @@
  * derivation simply do not declare the method.
  */
 import {
+	AlgorithmUnsupportedError,
 	KeyNotFoundError,
 	KeyProviderError,
 	KeyPurposeMismatchError,
@@ -30,6 +32,7 @@ import {
 import type { KeyProvider, KeyRef, SignRequest, SignResult, SigningKeyRef } from '../keys/types.js'
 import type { SigningEvent } from '../keys/signing-event.js'
 import { validatePayloadTypePurpose } from '../keys/payload-type-mapping.js'
+import { buildSigningInput } from '../keys/signing-input.js'
 import type { Algorithm } from '../types/algorithm.js'
 import type { SigningKeyPurpose } from '../types/key-purpose.js'
 import type { KeyScope } from '../types/key-scope.js'
@@ -144,9 +147,18 @@ export class InMemoryKeyProvider implements KeyProvider {
 			throw err
 		}
 
-		// Emit sign-request before validation so audit logs see attempted operations,
-		// even ones that subsequently fail validation.
+		// Emit sign-request before any post-key-lookup validation so audit logs
+		// see every attempted operation against a known key, including those
+		// that subsequently fail validation.
 		this.#emit({ type: 'sign-request', keyId: req.keyId, purpose: req.purpose, at: new Date() })
+
+		if (req.algorithm !== entry.keyRef.algorithm) {
+			const err = new AlgorithmUnsupportedError(
+				`key '${req.keyId}' is bound to algorithm '${entry.keyRef.algorithm}' but the request specified '${req.algorithm}'`,
+			)
+			this.#emit({ type: 'sign-error', keyId: req.keyId, error: err, at: new Date() })
+			throw err
+		}
 
 		if (!entry.keyRef.purposes.includes(req.purpose)) {
 			const err = new KeyPurposeMismatchError(
@@ -166,7 +178,16 @@ export class InMemoryKeyProvider implements KeyProvider {
 			throw err
 		}
 
-		const signature = await this.#sign(entry.privateKey, entry.keyRef.algorithm, req.payload)
+		// Domain-separated signing input: SHA-256(canonicalBytes({payloadType, context}))
+		// is prepended to the payload before signing, so a signature over an
+		// `ap2.IntentMandate/v1` payload cannot be replayed against
+		// `ap2.CartMandate/v1` even if the inner canonical bytes coincide.
+		const signingInput = await buildSigningInput({
+			payload: req.payload,
+			payloadType: req.payloadType,
+			...(req.context !== undefined ? { context: req.context } : {}),
+		})
+		const signature = await this.#sign(entry.privateKey, entry.keyRef.algorithm, signingInput)
 		const publicJwk = await this.#exportJwk(entry.publicCryptoKey)
 
 		const result: SignResult = {

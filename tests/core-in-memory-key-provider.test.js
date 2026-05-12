@@ -3,6 +3,8 @@ import { test } from 'node:test'
 
 import { InMemoryKeyProvider } from '@agent-commerce-trust/core/dev'
 import {
+	AlgorithmUnsupportedError,
+	buildSigningInput,
 	canonicalBytes,
 	KeyNotFoundError,
 	KeyPurposeMismatchError,
@@ -114,7 +116,13 @@ test('supportedAlgorithms returns the key algorithm for a known keyId', async ()
 	assert.deepEqual(algos, ['ECDSA_P256'])
 })
 
-// === Sign + verify round trips (the PR 6 exit-gate test) ===
+// === Sign + verify round trips ===
+//
+// Verification reconstructs the same domain-separated signing input
+// via `buildSigningInput` and feeds it to `crypto.subtle.verify`. This
+// mirrors the canonical §7.1 contract: payloadType is hashed into the
+// signing context as a domain separator, so verifiers must combine
+// (payloadType, context, payload) the same way the signer did.
 
 test('sign + verify round trip succeeds for Ed25519', async () => {
 	const provider = new InMemoryKeyProvider()
@@ -140,7 +148,8 @@ test('sign + verify round trip succeeds for Ed25519', async () => {
 	assert.equal(result.signature.byteLength, 64) // Ed25519 signature is 64 bytes
 	assert.equal(typeof result.keyVersion, 'string')
 
-	// Independent verification against the PublicKey
+	// Independent verification: reconstruct the domain-separated signing input
+	// from (payloadType, payload) and feed it to crypto.subtle.verify.
 	const pub = await provider.getPublicKey(ref.keyId)
 	const importedPublic = await globalThis.crypto.subtle.importKey(
 		'raw',
@@ -149,13 +158,27 @@ test('sign + verify round trip succeeds for Ed25519', async () => {
 		false,
 		['verify'],
 	)
+	const signingInput = await buildSigningInput({
+		payload,
+		payloadType: 'ap2.IntentMandate/v1',
+	})
 	const ok = await globalThis.crypto.subtle.verify(
+		{ name: 'Ed25519' },
+		importedPublic,
+		result.signature,
+		signingInput,
+	)
+	assert.equal(ok, true)
+
+	// And the raw payload (without the domain prefix) MUST NOT verify —
+	// this is the domain-separation guarantee.
+	const okOverRaw = await globalThis.crypto.subtle.verify(
 		{ name: 'Ed25519' },
 		importedPublic,
 		result.signature,
 		payload,
 	)
-	assert.equal(ok, true)
+	assert.equal(okOverRaw, false)
 })
 
 test('sign + verify round trip succeeds for ECDSA_P256', async () => {
@@ -179,7 +202,6 @@ test('sign + verify round trip succeeds for ECDSA_P256', async () => {
 	assert.ok(result.signature instanceof Uint8Array)
 	assert.equal(result.signature.byteLength, 64) // ECDSA P-256 raw signature is 64 bytes (r||s)
 
-	// Independent verification
 	const pub = await provider.getPublicKey(ref.keyId)
 	const importedPublic = await globalThis.crypto.subtle.importKey(
 		'raw',
@@ -188,13 +210,104 @@ test('sign + verify round trip succeeds for ECDSA_P256', async () => {
 		false,
 		['verify'],
 	)
+	const signingInput = await buildSigningInput({
+		payload,
+		payloadType: 'commerce.Offer/v1',
+	})
 	const ok = await globalThis.crypto.subtle.verify(
 		{ name: 'ECDSA', hash: 'SHA-256' },
 		importedPublic,
 		result.signature,
-		payload,
+		signingInput,
 	)
 	assert.equal(ok, true)
+})
+
+test('sign + verify round trip preserves the SignRequest.context binding', async () => {
+	// Same payload + same payloadType + different `context` → different
+	// signatures. The verifier MUST reconstruct the matching context to verify.
+	const provider = new InMemoryKeyProvider()
+	const ref = await provider.generateSigningKey({
+		algorithm: 'Ed25519',
+		purposes: ['sign-intent-mandate'],
+	})
+	const payload = canonicalBytes({ amount: 100 })
+	const ctxA = { sessionId: 'session-A' }
+	const ctxB = { sessionId: 'session-B' }
+	const resultA = await provider.sign({
+		keyId: ref.keyId,
+		algorithm: 'Ed25519',
+		payload,
+		payloadType: 'ap2.IntentMandate/v1',
+		purpose: 'sign-intent-mandate',
+		context: ctxA,
+	})
+	const resultB = await provider.sign({
+		keyId: ref.keyId,
+		algorithm: 'Ed25519',
+		payload,
+		payloadType: 'ap2.IntentMandate/v1',
+		purpose: 'sign-intent-mandate',
+		context: ctxB,
+	})
+	assert.notDeepEqual(Array.from(resultA.signature), Array.from(resultB.signature))
+
+	// Verify A under A's context succeeds; verify A under B's context fails.
+	const pub = await provider.getPublicKey(ref.keyId)
+	const importedPublic = await globalThis.crypto.subtle.importKey(
+		'raw',
+		pub.encoded,
+		{ name: 'Ed25519' },
+		false,
+		['verify'],
+	)
+	const inputA = await buildSigningInput({ payload, payloadType: 'ap2.IntentMandate/v1', context: ctxA })
+	const inputB = await buildSigningInput({ payload, payloadType: 'ap2.IntentMandate/v1', context: ctxB })
+	assert.equal(
+		await globalThis.crypto.subtle.verify({ name: 'Ed25519' }, importedPublic, resultA.signature, inputA),
+		true,
+	)
+	assert.equal(
+		await globalThis.crypto.subtle.verify({ name: 'Ed25519' }, importedPublic, resultA.signature, inputB),
+		false,
+	)
+})
+
+test('sign domain-separates across payloadType: same payload bytes + different payloadType → unverifiable cross-replay', async () => {
+	// Provision a key authorised for BOTH purposes so the only thing changing
+	// between the two sign calls is payloadType. Then attempt to verify the
+	// first signature under the second payloadType's signing input — MUST fail.
+	const provider = new InMemoryKeyProvider()
+	const ref = await provider.generateSigningKey({
+		algorithm: 'Ed25519',
+		purposes: ['sign-intent-mandate', 'sign-cart-mandate'],
+	})
+	const payload = canonicalBytes({ commonField: 'colliding-bytes' })
+
+	const intentResult = await provider.sign({
+		keyId: ref.keyId,
+		algorithm: 'Ed25519',
+		payload,
+		payloadType: 'ap2.IntentMandate/v1',
+		purpose: 'sign-intent-mandate',
+	})
+
+	const pub = await provider.getPublicKey(ref.keyId)
+	const importedPublic = await globalThis.crypto.subtle.importKey(
+		'raw',
+		pub.encoded,
+		{ name: 'Ed25519' },
+		false,
+		['verify'],
+	)
+	const cartInput = await buildSigningInput({ payload, payloadType: 'ap2.CartMandate/v1' })
+	const replayOk = await globalThis.crypto.subtle.verify(
+		{ name: 'Ed25519' },
+		importedPublic,
+		intentResult.signature,
+		cartInput,
+	)
+	assert.equal(replayOk, false)
 })
 
 // === sign() error paths ===
@@ -277,7 +390,7 @@ test('onSigningEvent fires sign-request + sign-result for a successful sign call
 	assert.equal(typeof events[1].keyVersion, 'string')
 })
 
-test('onSigningEvent fires sign-error when sign rejects', async () => {
+test('onSigningEvent fires sign-request then sign-error when post-lookup validation rejects', async () => {
 	const provider = new InMemoryKeyProvider()
 	const ref = await provider.generateSigningKey({
 		algorithm: 'Ed25519',
@@ -294,11 +407,51 @@ test('onSigningEvent fires sign-error when sign rejects', async () => {
 		payloadType: 'ap2.CartMandate/v1', // wrong payloadType → KeyPurposePayloadTypeMismatchError
 		purpose: 'sign-intent-mandate',
 	}))
-	// At least one sign-error event was emitted; sign-request may also be
-	// emitted depending on where validation kicks in.
-	const errorEvents = events.filter((e) => e.type === 'sign-error')
-	assert.equal(errorEvents.length, 1)
-	assert.ok(errorEvents[0].error instanceof KeyPurposePayloadTypeMismatchError)
+	// Strict ordering: sign-request first (key found), then sign-error
+	// (post-lookup validation rejected).
+	assert.equal(events.length, 2)
+	assert.equal(events[0].type, 'sign-request')
+	assert.equal(events[0].keyId, ref.keyId)
+	assert.equal(events[1].type, 'sign-error')
+	assert.ok(events[1].error instanceof KeyPurposePayloadTypeMismatchError)
+})
+
+test('onSigningEvent fires only sign-error (no sign-request) when keyId is unknown', async () => {
+	// Pre-lookup failure: the key doesn't exist, so there's no attested
+	// operation to log as sign-request. Only sign-error fires.
+	const provider = new InMemoryKeyProvider()
+	const events = []
+	provider.onSigningEvent((evt) => {
+		events.push(evt)
+	})
+	await assert.rejects(() => provider.sign({
+		keyId: 'does-not-exist',
+		algorithm: 'Ed25519',
+		payload: new Uint8Array([1, 2, 3]),
+		payloadType: 'ap2.IntentMandate/v1',
+		purpose: 'sign-intent-mandate',
+	}))
+	assert.equal(events.length, 1)
+	assert.equal(events[0].type, 'sign-error')
+	assert.ok(events[0].error instanceof KeyNotFoundError)
+})
+
+test('sign throws AlgorithmUnsupportedError when SignRequest.algorithm does not match the key', async () => {
+	const provider = new InMemoryKeyProvider()
+	const ref = await provider.generateSigningKey({
+		algorithm: 'Ed25519',
+		purposes: ['sign-intent-mandate'],
+	})
+	await assert.rejects(
+		() => provider.sign({
+			keyId: ref.keyId,
+			algorithm: 'ECDSA_P256', // mismatched
+			payload: canonicalBytes({ a: 1 }),
+			payloadType: 'ap2.IntentMandate/v1',
+			purpose: 'sign-intent-mandate',
+		}),
+		(err) => err instanceof AlgorithmUnsupportedError && err.code === 'algorithm-unsupported',
+	)
 })
 
 test('onSigningEvent returns an Unsubscribe that detaches the callback', async () => {

@@ -117,7 +117,8 @@ for (const { dir, manifest, manifestPath } of packages) {
       }
       // Core: assert the `/dev` subpath ships the in-memory provider and
       // the `/providers` subpath is reserved (set to null) until the first
-      // production KMS provider lands post-rc.1 per the buildout invariants.
+      // KMS/HSM-backed provider lands at the @agent-commerce-trust/core/providers
+      // subpath.
       if (manifest.exports?.['./dev']?.import !== './dist/dev/index.js') {
         throw new Error(`${manifest.name} must export ./dist/dev/index.js at the /dev subpath`)
       }

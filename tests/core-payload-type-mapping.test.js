@@ -122,9 +122,35 @@ test('validatePayloadTypePurpose error message names the expected purpose so cal
 	}
 })
 
-test('PAYLOAD_TYPE_PURPOSE_MAP entries are iterable in insertion order', () => {
-	// Lets downstream tooling (e.g. doc generators, conformance suites) walk
-	// the map deterministically without alphabetising or re-sorting.
-	const first = PAYLOAD_TYPE_PURPOSE_MAP.entries().next().value
-	assert.deepEqual(first, ['ap2.IntentMandate/v1', 'sign-intent-mandate'])
+test('PAYLOAD_TYPE_PURPOSE_MAP entries iterate in the same order as the canonical-doc table', () => {
+	// Full-order check (not just the first row): any middle/end reordering or
+	// drop must fail this test. Downstream tooling (doc generators,
+	// conformance suites) relies on deterministic walk order without
+	// alphabetising or re-sorting.
+	const actualOrder = [...PAYLOAD_TYPE_PURPOSE_MAP.entries()]
+	assert.deepEqual(actualOrder, NORMATIVE_PAIRS)
+})
+
+test('PAYLOAD_TYPE_PURPOSE_MAP is runtime-immutable: set/delete/clear all throw', () => {
+	// The declared type ReadonlyMap hides mutation methods at compile time;
+	// these checks lock the mutation methods at runtime so a consumer
+	// reaching for `.set()` via a type cast or pure-JS use can't corrupt
+	// the normative mapping.
+	assert.throws(
+		() => /** @type {any} */ (PAYLOAD_TYPE_PURPOSE_MAP).set('extra.Type/v1', 'sign-offer'),
+		TypeError,
+	)
+	assert.throws(
+		() => /** @type {any} */ (PAYLOAD_TYPE_PURPOSE_MAP).delete('ap2.IntentMandate/v1'),
+		TypeError,
+	)
+	assert.throws(
+		() => /** @type {any} */ (PAYLOAD_TYPE_PURPOSE_MAP).clear(),
+		TypeError,
+	)
+	// And the Map is frozen, so the override methods themselves can't be
+	// reassigned.
+	assert.throws(() => {
+		;/** @type {any} */ (PAYLOAD_TYPE_PURPOSE_MAP).set = () => undefined
+	})
 })

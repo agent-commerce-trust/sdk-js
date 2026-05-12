@@ -13,6 +13,8 @@ export {
   validatePayloadTypePurpose,
 } from './keys/payload-type-mapping.js'
 
+export { buildSigningInput } from './keys/signing-input.js'
+
 export type * from './mandates/index.js'
 export {
   createIntentMandate,
