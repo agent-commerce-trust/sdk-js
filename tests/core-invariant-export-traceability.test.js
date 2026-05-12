@@ -1,6 +1,7 @@
 /**
- * Invariant E — every public export of `@agent-commerce-trust/core` and
- * `@agent-commerce-trust/core/dev` at rc.1 traces to either:
+ * Surface-traceability invariant for `@agent-commerce-trust/core` and
+ * `@agent-commerce-trust/core/dev`. Every public export at rc.1 must
+ * trace to either:
  *
  *   - §5.1 of the canonical SDK doc (rc.1 entry criteria), or
  *   - §7   of the canonical SDK doc (normative contract).
@@ -12,6 +13,14 @@
  *
  * Type-only exports are not enumerated here — TypeScript itself enforces
  * their existence at compile time and they have no runtime presence.
+ *
+ * The allowlist is a hand-maintained ledger. Adding a new public runtime
+ * export requires editing this file at the same time, which is the
+ * intended design: changes to the rc.1 surface should be explicit,
+ * reviewable, and anchored to a doc section. If the allowlist diverges
+ * from intent, a future generation step (e.g. parsing the canonical
+ * doc's §5.1 / §7 enumeration into a manifest) can replace this manual
+ * ledger; for rc.1 the manual ledger is the trade-off we accept.
  */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'

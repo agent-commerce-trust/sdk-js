@@ -1,16 +1,24 @@
 /**
- * Invariant B — browser-safe primitives.
+ * Browser-safety invariant for `@agent-commerce-trust/core`.
  *
  * `@agent-commerce-trust/core` ships to browsers as well as Node. No
  * `node:` import may exist anywhere in the production build artifacts.
  * This test recursively walks `packages/core/dist/` and asserts every
- * emitted `.js` / `.cjs` / `.mjs` bundle is free of:
+ * emitted `.js` / `.cjs` / `.mjs` bundle is free of any reference to a
+ * `node:`-prefixed builtin in the four import forms below:
  *
- *   - `from "node:..."` ESM-form imports
- *   - `require("node:...")` CJS-form imports
- *   - `import("node:...")` dynamic-form imports
+ *   - `from "node:..."`     ESM static import
+ *   - `import "node:..."`   ESM side-effect import
+ *   - `require("node:...")` CJS require
+ *   - `import("node:...")`  ESM dynamic import
  *
  * `*.map` files are skipped (they only carry source-map metadata).
+ *
+ * Bare-builtin names (`require("fs")`, `require("crypto")`, …) are NOT
+ * scanned here: they're ambiguous (`fs` could be a legitimate local
+ * variable or third-party module name). The project relies on the
+ * `node:`-prefix convention throughout source, so any leak into the
+ * bundle would show up under this scan.
  */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -32,7 +40,8 @@ async function collectBundlePaths(dir) {
 	return out
 }
 
-const NODE_IMPORT_PATTERN = /(?:from\s*["']node:|require\(\s*["']node:|import\(\s*["']node:)/g
+const NODE_IMPORT_PATTERN =
+	/(?:from\s*["']node:|import\s+["']node:|require\(\s*["']node:|import\(\s*["']node:)/g
 
 test('production dist has zero `node:` imports across every emitted bundle', async () => {
 	const distRoot = new URL('../packages/core/dist/', import.meta.url).pathname

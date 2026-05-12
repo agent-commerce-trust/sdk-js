@@ -143,6 +143,14 @@ test('Signing the same payload twice yields independently-verifiable signatures'
 		payloadType: 'commerce.Offer/v1',
 		purpose: 'sign-offer',
 	})
+	// Non-determinism: ECDSA generates fresh randomness per sign, so the same
+	// inputs MUST produce different signature bytes. (If they collided the
+	// underlying CSPRNG would be broken.)
+	assert.notDeepEqual(
+		Array.from(ecResultA.signature),
+		Array.from(ecResultB.signature),
+		'ECDSA_P256 signatures of identical inputs must differ (non-deterministic signing)',
+	)
 	// Both ECDSA signatures must verify even though the bytes differ.
 	const edPub = await provider.getPublicKey(edRef.keyId)
 	const ecPub = await provider.getPublicKey(ecRef.keyId)

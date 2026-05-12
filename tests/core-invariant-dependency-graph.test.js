@@ -1,5 +1,5 @@
 /**
- * Invariant A — `@agent-commerce-trust/core` is profile-neutral.
+ * Profile-neutrality invariant for `@agent-commerce-trust/core`.
  *
  * The canonical SDK doc at `docs/domains/auth/trust-layer-sdk.md` §7.1
  * establishes that profiles depend on core, never the reverse. This test
@@ -29,9 +29,11 @@ test('core has zero @ap2-travel/* runtime/peer/optional dependencies', async () 
 })
 
 test('core declares an empty top-level `dependencies` map at rc.1', async () => {
-	// Belt-and-braces: even a non-@ap2-travel runtime dep should be reviewed
-	// at rc.1. core is the foundation everything else depends on; runtime
-	// deps here propagate transitively across the ecosystem.
+	// Release-scoped: this assertion guards the rc.1 surface specifically.
+	// core is the foundation every other package transitively depends on,
+	// so any runtime dep here propagates across the ecosystem. If a future
+	// release legitimately needs a runtime dep, relax this test at the same
+	// time as the dep is added — but require explicit reviewer attention.
 	const manifest = JSON.parse(
 		await readFile(new URL('../packages/core/package.json', import.meta.url), 'utf8'),
 	)

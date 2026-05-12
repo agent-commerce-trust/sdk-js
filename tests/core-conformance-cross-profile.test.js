@@ -17,6 +17,15 @@
  * Failure of either path means core has acquired profile coupling that
  * the dependency-graph invariant test cannot catch (because the coupling
  * could be behavioural, not declared in package.json).
+ *
+ * Forward note: when `@ap2-travel/profile` rc.2 publishes and replaces
+ * its own canonicalize with a re-export from core, the two
+ * canonicalize functions become the same function object. Path-(1)
+ * assertions then trivially hold by identity rather than by independent
+ * computation. At that point this file should be revised to assert
+ * cross-profile parity against a fixed reference (e.g. a checked-in
+ * vector file or the Go reference's CanonicalSerialize output) rather
+ * than against profile's now-re-exported function.
  */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'

@@ -80,6 +80,23 @@ test('@agent-commerce-trust/core/dev: InMemoryKeyProvider resolves via ESM AND C
 	}
 })
 
+test('@agent-commerce-trust/core/dev: ESM and CJS expose the same runtime symbol set', () => {
+	// Symmetric with the equivalent check on the package root above — guards
+	// /dev against future ESM/CJS drift the same way.
+	const coreDevCjs = require('@agent-commerce-trust/core/dev')
+	const esmRuntimeNames = Object.keys(coreDevEsm)
+		.filter((k) => typeof coreDevEsm[k] !== 'undefined')
+		.sort()
+	const cjsRuntimeNames = Object.keys(coreDevCjs)
+		.filter((k) => typeof coreDevCjs[k] !== 'undefined' && k !== 'default' && k !== '__esModule')
+		.sort()
+	assert.deepEqual(
+		esmRuntimeNames,
+		cjsRuntimeNames,
+		'ESM and CJS /dev runtime symbol sets must be identical',
+	)
+})
+
 test('@agent-commerce-trust/core: type declarations exist at the declared paths', async () => {
 	// The package.json `exports['.']?.types` and `exports['./dev']?.types`
 	// declare type-file paths. Conformance: those files must exist on disk
