@@ -46,6 +46,15 @@ test('canonicalize rejects strings containing a lone low surrogate', () => {
 	assert.throws(() => canonicalize({ k: lonely }), TypeError)
 })
 
+test('canonicalize rejects strings containing a reversed surrogate pair (low then high)', () => {
+	// Reversed pair: 0xDC00 followed by 0xD835. Both are surrogates but the
+	// ordering is invalid — the low precedes the high. Each surrogate is
+	// effectively lone in this sequence; the leading low triggers the
+	// rejection on first scan.
+	const reversed = '\uDC00\uD835'
+	assert.throws(() => canonicalize({ k: reversed }), TypeError)
+})
+
 test('canonicalize rejects object keys containing a lone surrogate', () => {
 	const obj = { '\uD835key': 1 }
 	assert.throws(() => canonicalize(obj), TypeError)

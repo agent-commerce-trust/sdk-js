@@ -13,9 +13,8 @@
  *
  * Production deployments must use one of the `@agent-commerce-trust/core/providers`
  * implementations (Aws/Gcp/Azure KMS, PKCS#11, FIDO2, RemoteSigner). The
- * `/providers` subpath in `package.json` is reserved (null-exports) at this
- * release; concrete production providers are published under that subpath in
- * a future release.
+ * `/providers` subpath in `package.json` is reserved (null-exports) until
+ * concrete production providers are published there.
  *
  * The provider implements the `KeyProvider` interface from
  * `docs/domains/auth/trust-layer-sdk.md` §7.1 plus a provisioning

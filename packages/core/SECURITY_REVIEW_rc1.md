@@ -106,18 +106,32 @@ and `(ref as any).extra = 'x'` all throw; then verifies that a sign
 attempt with a non-granted purpose still rejects with
 `KeyPurposeMismatchError` after the attempted mutations.
 
-**1.5 — ADVISORY: `KeyRef.publicKey.encoded` is a `Uint8Array`; its bytes remain mutable.**
+**1.5 — ADVISORY: `KeyRef.publicKey.encoded` is a `Uint8Array`; the byte contents are not frozen.**
 
-`Object.freeze` on a typed array does not block element writes
-(`bytes[0] = 0xFF` still succeeds). The `publicKey` object is frozen at
-the field level (so `keyRef.publicKey = X` throws), but a caller can
-mutate the underlying bytes. This does not affect authorisation
-(`sign()` does not consult `publicKey.encoded`), and the matching
-public key used at sign time comes from
-`entry.publicCryptoKey` (a `CryptoKey` handle, not the byte array).
+The fix in §1.4 freezes the outer `keyRef` and the `publicKey` object
+(so `keyRef.publicKey = X` and `keyRef.publicKey.encoded = newArr`
+both throw), but does NOT freeze the `Uint8Array` itself — typed-array
+element freezing is engine-inconsistent (some engines refuse to freeze
+non-empty typed arrays at all; others freeze the object but allow
+element writes in sloppy mode and throw in strict). The source
+intentionally leaves the byte array unfrozen rather than depend on
+engine-specific semantics.
+
+Practical impact: a caller can mutate the underlying bytes via index
+writes (`returnedRef.publicKey.encoded[0] = 0xFF`). This does NOT
+affect authorisation — `sign()` uses `entry.publicCryptoKey` (a live
+`CryptoKey` handle) for the actual signing operation, never reading
+`entry.keyRef.publicKey.encoded`. The encoded bytes are only consumed
+by callers building wire-format envelopes.
+
 Document: production providers should treat returned `Uint8Array`
-fields as immutable and consumers should defensive-copy before
-external publication.
+fields as immutable; defensive-copy at the consumer's wire-format
+boundary if external publication is possible.
+
+`getPublicKey(keyId)` also returns the same frozen `publicKey` object
+the provider holds internally (`packages/core/src/dev/in-memory-key-provider.ts:145`);
+the same byte-mutability caveat applies. No in-tree caller mutates the
+returned bytes.
 
 **1.6 — ADVISORY: error messages disclose key IDs, allowed purposes, and payload types.**
 
@@ -182,6 +196,48 @@ consumer calling `provider.derive!(req)` gets a native `TypeError`
 uniform `try { … } catch (KeyProviderError) { … }` will fall through to
 the catch-all path for native errors. Documented contract; consumers
 must check `provider.derive !== undefined` before calling.
+
+**1.10 — ADVISORY: `SignRequest.payload` bytes are not schema-validated by `sign()`.**
+
+`SignRequest.payload: Uint8Array` (at
+`packages/core/src/keys/types.ts:81`) is treated as opaque pre-canonicalised
+bytes by the provider. `sign()` validates:
+
+- the keyId resolves to a known internal entry (§1.1),
+- the request's algorithm matches the key's algorithm (§1.3),
+- the request's purpose is in the key's purposes list (§1.1),
+- the `payloadType` and `purpose` are consistent per the normative
+  mapping (§1.2).
+
+It does NOT parse the `payload` bytes, validate them against any
+JSON / Protobuf / CBOR schema, or cross-check that the bytes are the
+canonical-bytes encoding of a value matching the declared
+`payloadType`. The provider could be asked to sign bytes that decode
+to entirely unrelated data and would still produce a verifiable
+signature — verifiers downstream would treat the signature as
+authorising whatever the bytes encode under the declared
+`payloadType` interpretation.
+
+This is INTENTIONAL: core is profile-neutral, so payload-schema
+validation is the producer's responsibility (typically: the vertical
+profile or the mandate-construction layer constructs the payload from
+typed fields, canonicalises, then hands the bytes to `sign()`). The
+package's own `createIntentMandate` / `createCartMandate` /
+`createPaymentMandate` helpers enforce envelope shape and then leave
+the inner payload typed-but-unvalidated for the same profile-neutral
+reason.
+
+Mitigation:
+
+- Producers SHOULD construct payloads through the profile-specific
+  builders, never assemble byte sequences by hand.
+- Consumers of signed wire envelopes SHOULD re-validate the decoded
+  payload against the expected `payloadType` schema before acting
+  on it — the signature attests authorisation, not schema validity.
+- Production providers under `@agent-commerce-trust/core/providers`
+  inherit this trade-off; the authoring guide should make explicit
+  that the production provider trusts its caller to have validated
+  the payload before signing.
 
 ---
 
@@ -428,17 +484,25 @@ interface surfaces immediately.
 **4.4 — ADVISORY: Ed25519 in browser WebCrypto requires recent browsers; ECDSA-P256 is universally available.**
 
 WebCrypto Ed25519 support (per current public browser-compat data):
-Chrome ≥ 113 (initially behind a flag, ungated by Chrome 137),
-Firefox ≥ 129, Safari ≥ 17. Older browsers lack Ed25519 in the
-SubtleCrypto surface entirely. ECDSA-P256 is universally supported
-(Chrome 37+, Firefox 34+, Safari 7.1+, Edge 12+).
+
+  - **Chrome ≥ 137** for default-on support. (Chrome 113 added it
+    behind the `#experimental-web-platform-features` flag; default-on
+    enablement only shipped in Chrome 137.)
+  - **Firefox ≥ 129** for default support.
+  - **Safari ≥ 17** for default support.
+
+Older browsers lack Ed25519 in the SubtleCrypto surface entirely.
+ECDSA-P256 is universally supported (Chrome 37+, Firefox 34+, Safari
+7.1+, Edge 12+).
 
 The package declares `engines.node: ">=20"` but does NOT declare a
 browser-side minimum. Consumers using `InMemoryKeyProvider` or the
 future verifier package in browser-side production traffic SHOULD:
 
   - Detect WebCrypto Ed25519 availability before relying on it.
-  - Fall back to ECDSA-P256 keys for cross-browser support.
+  - Fall back to ECDSA-P256 keys for cross-browser support, or fence
+    Ed25519 usage to runtime environments confirmed to support it
+    (server-side Node ≥ 20 is fine).
 
 Recommendation: document the browser support matrix in the README
 alongside `engines.node` when the README is authored for publish.
@@ -514,12 +578,12 @@ nothing — the resolver only honours declared subpaths.
 
 | Area | CONFIRM | ADVISORY | CLOSED-BY-FIX | BLOCKER |
 |---|---|---|---|---|
-| §1 KeyProvider purpose enforcement | 3 | 5 | 1 | 0 |
+| §1 KeyProvider purpose enforcement | 3 | 6 | 1 | 0 |
 | §2 Canonical bytes vs RFC 8785 | 5 | 2 | 3 | 0 |
 | §3 Hashing primitives | 3 | 1 | 0 | 0 |
 | §4 Browser safety | 3 | 1 | 0 | 0 |
 | §5 Test-fixture key handling | 4 | 1 | 0 | 0 |
-| **Totals** | **18** | **10** | **4** | **0** |
+| **Totals** | **18** | **11** | **4** | **0** |
 
 ### Closed-by-fix list (this revision)
 
@@ -538,8 +602,9 @@ Each fix has dedicated regression tests.
 ### Advisory list (consolidated)
 
 1. **§1.5** `Uint8Array` byte contents inside `publicKey.encoded`
-   remain mutable; `Object.freeze` does not block typed-array element
-   writes. Mitigated by production-provider defensive-copy guidance.
+   remain mutable; typed-array element freezing is engine-inconsistent
+   and the source leaves the bytes unfrozen by design. Mitigated by
+   production-provider defensive-copy guidance.
 2. **§1.6** Error messages disclose key IDs, allowed purposes, and
    payload types. Mitigated by production-provider "production mode"
    recommendation.
@@ -551,17 +616,21 @@ Each fix has dedicated regression tests.
    with auth/rate-limit.
 5. **§1.9** `provider.derive!(req)` throws native `TypeError` when
    omitted. Documented contract.
-6. **§2.9** No size / depth / cycle guard in canonical recursion.
+6. **§1.10** `SignRequest.payload` bytes are not schema-validated by
+   `sign()`. Intentional profile-neutrality; producers must validate
+   before canonicalising, consumers must re-validate decoded payload
+   against the declared `payloadType` schema after signature verify.
+7. **§2.9** No size / depth / cycle guard in canonical recursion.
    Mitigated by deployment-side validation; tracked for a future
    bounded variant.
-7. **§2.10** No Unicode NFC normalisation; producers responsible for
+8. **§2.10** No Unicode NFC normalisation; producers responsible for
    cross-input equivalence.
-8. **§3.4** HMAC-pepper review deferred to first production provider
+9. **§3.4** HMAC-pepper review deferred to first production provider
    implementing `derive`.
-9. **§4.4** Ed25519 WebCrypto requires Chrome ≥ 113, Firefox ≥ 129,
-   Safari ≥ 17; ECDSA-P256 universal. Document browser support matrix
-   in README before publish.
-10. **§5.3** `InMemoryKeyProvider` keys are extractable (intentional
+10. **§4.4** Ed25519 WebCrypto requires Chrome ≥ 137 (default-on),
+    Firefox ≥ 129, Safari ≥ 17; ECDSA-P256 universal. Document browser
+    support matrix in README before publish.
+11. **§5.3** `InMemoryKeyProvider` keys are extractable (intentional
     for test fixtures; mitigated by subpath isolation + documentation).
     Production providers MUST NOT generate extractable keys.
 
@@ -584,7 +653,7 @@ by source-level fixes in the same commit (see closed-by-fix list).
    variation, not by RFC 8785 deltas.)
 
 3. **Document the browser support matrix** in the README, noting
-   Ed25519 minimums (Chrome ≥ 113, Firefox ≥ 129, Safari ≥ 17) and
+   Ed25519 default-on minimums (Chrome ≥ 137, Firefox ≥ 129, Safari ≥ 17) and
    ECDSA-P256 universal availability alongside the `engines.node`
    declaration.
 

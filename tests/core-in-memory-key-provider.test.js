@@ -137,6 +137,25 @@ test('getPublicKey returns the PublicKey for a generated signing key', async () 
 	assert.equal(pub.encoded.byteLength, 32) // Ed25519 raw public key is 32 bytes
 })
 
+test('getPublicKey returns a frozen PublicKey object: mutating its field references throws', async () => {
+	const provider = new InMemoryKeyProvider()
+	const ref = await provider.generateSigningKey({ algorithm: 'Ed25519', purposes: ['sign-log-entry'] })
+	const pub = await provider.getPublicKey(ref.keyId)
+	// Field-level immutability: cannot replace algorithm, encoded, version.
+	assert.throws(() => {
+		;/** @type {any} */ (pub).algorithm = 'ECDSA_P256'
+	}, TypeError)
+	assert.throws(() => {
+		;/** @type {any} */ (pub).encoded = new Uint8Array([1, 2, 3])
+	}, TypeError)
+	assert.throws(() => {
+		;/** @type {any} */ (pub).extra = 'x'
+	}, TypeError)
+	// (Byte-array element writes via pub.encoded[i] = X are NOT blocked —
+	// documented design trade-off; element-freezing typed arrays is
+	// engine-inconsistent.)
+})
+
 test('getPublicKey throws KeyNotFoundError for an unknown keyId', async () => {
 	const provider = new InMemoryKeyProvider()
 	await assert.rejects(
