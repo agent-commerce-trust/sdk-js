@@ -8,9 +8,6 @@ mandate construction + validation helpers.
 > ⚠️ **`@agent-commerce-trust/core/dev` is for tests and local development only.**
 > The `/dev` subpath ships an in-memory `KeyProvider` whose private keys live in
 > JS heap memory and are extractable. Never use it in production. Production
-> deployments resolve keys through KMS/HSM-backed implementations available
-> under the `@agent-commerce-trust/core/providers` subpath (reserved at this
-> release, populated by future production-provider releases).
-
-A full quick-start, installation guide, and links to the canonical
-trust-layer specification will accompany the public release of this package.
+> deployments resolve keys through KMS/HSM-backed implementations under the
+> `@agent-commerce-trust/core/providers` subpath, which is reserved (no
+> exports) until concrete production providers land.

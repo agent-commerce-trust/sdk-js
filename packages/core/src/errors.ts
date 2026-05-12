@@ -1,6 +1,7 @@
 /**
- * Trust layer error hierarchy per §7.1 of the AP2-Travel trust-layer SDK
- * specification. All errors carry a stable `code` string for telemetry +
+ * Trust layer error hierarchy per §7.1 of the canonical SDK doc at
+ * `docs/domains/auth/trust-layer-sdk.md`. All errors carry a stable
+ * `code` string for telemetry +
  * cross-language verification audit logs; consumers discriminate via
  * `instanceof` and never via string matching on `message` or `code`.
  *
