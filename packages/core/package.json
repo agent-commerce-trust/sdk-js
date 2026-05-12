@@ -1,6 +1,6 @@
 {
   "name": "@agent-commerce-trust/core",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0-rc.1",
   "description": "Shared primitives for Agent Commerce Trust packages.",
   "author": "Airheart, Inc.",
   "license": "Apache-2.0",
@@ -26,7 +26,11 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE",
+    "SECURITY_REVIEW_rc1.md"
   ],
   "scripts": {
     "build": "tsup src/index.ts src/dev/index.ts --format esm,cjs --sourcemap --clean --out-dir dist && tsc -p tsconfig.json --emitDeclarationOnly --declarationDir dist && node scripts/mirror-dts-to-cts.mjs",

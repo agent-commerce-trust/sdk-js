@@ -7,6 +7,7 @@ import {
   expectedPackageNames,
   expectedProfileVersion,
   expectedVersion,
+  expectedVersionFor,
   listWorkspacePackages,
   phaseOnePackageNames,
 } from './workspace-packages.js'
@@ -34,8 +35,9 @@ for (const { dir, manifest, manifestPath } of packages) {
   if (!expectedPackageNames.has(manifest.name)) {
     throw new Error(`${manifestPath} has unexpected package name ${manifest.name}`)
   }
-  if (manifest.version !== expectedVersion) {
-    throw new Error(`${manifest.name} version must be ${expectedVersion}`)
+  const expectedManifestVersion = expectedVersionFor(manifest.name)
+  if (manifest.version !== expectedManifestVersion) {
+    throw new Error(`${manifest.name} version must be ${expectedManifestVersion}`)
   }
   if (manifest.private !== false) {
     throw new Error(`${manifest.name} must set private=false for publish readiness`)
@@ -68,10 +70,23 @@ for (const { dir, manifest, manifestPath } of packages) {
     throw new Error(`${manifest.name} must set top-level types`)
   }
   if (!manifest.files?.includes('dist') || !manifest.files?.includes('README.md')) {
-    throw new Error(`${manifest.name} must publish dist and README.md only`)
+    throw new Error(`${manifest.name} must publish dist and README.md at minimum`)
   }
   if (!existsSync(join(dir, 'README.md'))) {
     throw new Error(`${manifest.name} is missing README.md`)
+  }
+  // Packages promoted past the workspace default (currently: core at rc.1)
+  // must ship the Appendix C publishing-checklist artifacts (LICENSE,
+  // NOTICE, CHANGELOG.md) both in the `files` field and on disk.
+  if (manifest.version !== expectedVersion) {
+    for (const required of ['LICENSE', 'NOTICE', 'CHANGELOG.md']) {
+      if (!manifest.files?.includes(required)) {
+        throw new Error(`${manifest.name} (version ${manifest.version}) must declare ${required} in files`)
+      }
+      if (!existsSync(join(dir, required))) {
+        throw new Error(`${manifest.name} is missing ${required} file on disk`)
+      }
+    }
   }
   if (
     !existsSync(join(dir, 'dist/index.js')) ||
@@ -86,8 +101,11 @@ for (const { dir, manifest, manifestPath } of packages) {
     if (deferredPackageNames.has(dependencyName)) {
       throw new Error(`${manifest.name} must not depend on deferred namespace package ${dependencyName}`)
     }
-    if (phaseOnePackageNames.has(dependencyName) && dependencyVersion !== expectedVersion) {
-      throw new Error(`${manifest.name} must depend on ${dependencyName}@${expectedVersion}`)
+    if (phaseOnePackageNames.has(dependencyName)) {
+      const expectedDepVersion = expectedVersionFor(dependencyName)
+      if (dependencyVersion !== expectedDepVersion) {
+        throw new Error(`${manifest.name} must depend on ${dependencyName}@${expectedDepVersion}`)
+      }
     }
   }
 
