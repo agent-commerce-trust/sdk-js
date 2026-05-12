@@ -5,6 +5,7 @@ const agent = require('@agent-commerce-trust/agent')
 const agentMcp = require('@agent-commerce-trust/agent-mcp')
 const commerceMcp = require('@agent-commerce-trust/commerce-mcp')
 const core = require('@agent-commerce-trust/core')
+const coreDev = require('@agent-commerce-trust/core/dev')
 const supplier = require('@agent-commerce-trust/supplier')
 const verifier = require('@agent-commerce-trust/verifier')
 const witness = require('@agent-commerce-trust/witness')
@@ -25,6 +26,23 @@ test('CommonJS entrypoint for core exposes the real rc.1 public surface', async 
   assert.equal(err.code, 'key-not-found')
   assert.ok(err instanceof core.KeyProviderError)
   assert.ok(err instanceof core.TrustLayerError)
+
+  // payloadType → purpose mapping (the prior PR 5 runtime surface)
+  assert.ok(core.PAYLOAD_TYPE_PURPOSE_MAP instanceof Map)
+  assert.equal(typeof core.validatePayloadTypePurpose, 'function')
+  assert.equal(
+    core.PAYLOAD_TYPE_PURPOSE_MAP.get('ap2.IntentMandate/v1'),
+    'sign-intent-mandate',
+  )
+})
+
+test('CommonJS entrypoint for @agent-commerce-trust/core/dev resolves and exposes InMemoryKeyProvider', async () => {
+  // /dev subpath resolution check (PR 6 exit gate: ESM + CJS coverage).
+  assert.equal(typeof coreDev.InMemoryKeyProvider, 'function')
+  const provider = new coreDev.InMemoryKeyProvider({ providerId: 'cjs-test' })
+  assert.equal(provider.providerId, 'cjs-test')
+  // derive is intentionally omitted (optional KeyProvider method)
+  assert.equal(provider.derive, undefined)
 })
 
 test('CommonJS entrypoints for non-core Phase-1 packages expose package roles (scaffold metadata)', () => {

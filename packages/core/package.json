@@ -15,7 +15,13 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    }
+    },
+    "./dev": {
+      "types": "./dist/dev/index.d.ts",
+      "import": "./dist/dev/index.js",
+      "require": "./dist/dev/index.cjs"
+    },
+    "./providers": null
   },
   "types": "./dist/index.d.ts",
   "files": [
@@ -23,7 +29,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --sourcemap --clean --out-dir dist && tsc -p tsconfig.json --emitDeclarationOnly --declarationDir dist && node scripts/mirror-dts-to-cts.mjs",
+    "build": "tsup src/index.ts src/dev/index.ts --format esm,cjs --sourcemap --clean --out-dir dist && tsc -p tsconfig.json --emitDeclarationOnly --declarationDir dist && node scripts/mirror-dts-to-cts.mjs",
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {},

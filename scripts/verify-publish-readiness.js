@@ -115,6 +115,29 @@ for (const { dir, manifest, manifestPath } of packages) {
           }
         }
       }
+      // Core: assert the `/dev` subpath ships the in-memory provider and
+      // the `/providers` subpath is reserved (set to null) until the first
+      // production KMS provider lands post-rc.1 per the buildout invariants.
+      if (manifest.exports?.['./dev']?.import !== './dist/dev/index.js') {
+        throw new Error(`${manifest.name} must export ./dist/dev/index.js at the /dev subpath`)
+      }
+      if (manifest.exports?.['./dev']?.require !== './dist/dev/index.cjs') {
+        throw new Error(`${manifest.name} must export ./dist/dev/index.cjs at the /dev subpath`)
+      }
+      if (manifest.exports?.['./dev']?.types !== './dist/dev/index.d.ts') {
+        throw new Error(`${manifest.name} must export ./dist/dev/index.d.ts types at the /dev subpath`)
+      }
+      if (manifest.exports?.['./providers'] !== null) {
+        throw new Error(`${manifest.name} must reserve ./providers (set to null) until the first production provider lands`)
+      }
+      if (
+        !existsSync(join(dir, 'dist/dev/index.js')) ||
+        !existsSync(join(dir, 'dist/dev/index.cjs')) ||
+        !existsSync(join(dir, 'dist/dev/index.d.ts')) ||
+        !existsSync(join(dir, 'dist/dev/index.d.cts'))
+      ) {
+        throw new Error(`${manifest.name} is missing built /dev ESM, CJS, or type entrypoints`)
+      }
     }
     if ('deprecationMessage' in manifest) {
       throw new Error(`${manifest.name} must not carry deferred deprecation metadata`)
