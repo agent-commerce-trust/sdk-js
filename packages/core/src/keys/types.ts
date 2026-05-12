@@ -1,14 +1,14 @@
 /**
- * `KeyProvider` contract per §7.1 of the AP2-Travel trust-layer SDK
- * specification. The SDK accepts keys via an abstract `KeyProvider` interface
- * and does not manage keys itself. All packages that sign or verify MUST
- * accept any conforming `KeyProvider`.
+ * `KeyProvider` contract per §7.1 of the canonical trust-layer SDK doc at
+ * `docs/domains/auth/trust-layer-sdk.md`. The SDK accepts keys via an
+ * abstract `KeyProvider` interface and does not manage keys itself. All
+ * packages that sign or verify MUST accept any conforming `KeyProvider`.
  *
  * No runtime in this module — only the type and interface contract that
  * binds external implementers. Production implementations (Aws KMS, GCP KMS,
- * etc.) land post-rc.1 under `@agent-commerce-trust/core/providers` per
- * Invariant D. The test-only `InMemoryKeyProvider` lands in Track 4 PR 6 at
- * `@agent-commerce-trust/core/dev`.
+ * Azure Key Vault, PKCS#11, FIDO2, RemoteSigner) ship at
+ * `@agent-commerce-trust/core/providers`; the test-only `InMemoryKeyProvider`
+ * ships at `@agent-commerce-trust/core/dev`.
  */
 import type { Algorithm } from '../types/algorithm.js'
 import type {

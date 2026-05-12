@@ -273,10 +273,11 @@ test('sign + verify round trip preserves the SignRequest.context binding', async
 	)
 })
 
-test('sign domain-separates across payloadType: same payload bytes + different payloadType → unverifiable cross-replay', async () => {
+test('sign domain-separates across payloadType: same payload bytes + different payloadType → different signatures AND unverifiable cross-replay', async () => {
 	// Provision a key authorised for BOTH purposes so the only thing changing
-	// between the two sign calls is payloadType. Then attempt to verify the
-	// first signature under the second payloadType's signing input — MUST fail.
+	// between the two sign calls is payloadType. Assert: (a) the two
+	// signatures differ as byte sequences, and (b) the first signature does
+	// not verify under the second payloadType's signing input.
 	const provider = new InMemoryKeyProvider()
 	const ref = await provider.generateSigningKey({
 		algorithm: 'Ed25519',
@@ -291,7 +292,23 @@ test('sign domain-separates across payloadType: same payload bytes + different p
 		payloadType: 'ap2.IntentMandate/v1',
 		purpose: 'sign-intent-mandate',
 	})
+	const cartResult = await provider.sign({
+		keyId: ref.keyId,
+		algorithm: 'Ed25519',
+		payload,
+		payloadType: 'ap2.CartMandate/v1',
+		purpose: 'sign-cart-mandate',
+	})
 
+	// (a) Different payloadType → different signature bytes, even though the
+	// underlying payload is identical.
+	assert.notDeepEqual(
+		Array.from(intentResult.signature),
+		Array.from(cartResult.signature),
+	)
+
+	// (b) The Intent signature cannot be verified under the Cart payloadType's
+	// signing input (cross-payloadType replay defence).
 	const pub = await provider.getPublicKey(ref.keyId)
 	const importedPublic = await globalThis.crypto.subtle.importKey(
 		'raw',

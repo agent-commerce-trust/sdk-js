@@ -93,11 +93,9 @@ for (const { dir, manifest, manifestPath } of packages) {
 
   if (phaseOnePackageNames.has(manifest.name)) {
     // `@agent-commerce-trust/core` is intentionally profile-neutral per
-    // Invariant A of TRUST_LAYER_SDK_PUBLIC_BUILDOUT and §7.1 of the canonical
-    // SDK doc: profiles depend on core, never the reverse. All other Phase-1
-    // packages currently depend on the AP2-Travel profile as a vertical
-    // extension; the post-Option-A architecture will narrow this further
-    // (profile rc.2 imports from core) per Track 2 of the buildout spec.
+    // §7.1 of `docs/domains/auth/trust-layer-sdk.md`: vertical profiles
+    // depend on core, never the reverse. Other Phase-1 packages depend
+    // on the AP2-Travel profile as a vertical extension.
     if (manifest.name !== '@agent-commerce-trust/core') {
       if (manifest.dependencies?.['@ap2-travel/profile'] !== `^${expectedProfileVersion}`) {
         throw new Error(`${manifest.name} must depend on @ap2-travel/profile@^${expectedProfileVersion}`)
@@ -110,7 +108,7 @@ for (const { dir, manifest, manifestPath } of packages) {
         for (const depName of Object.keys(manifest[depMapName] ?? {})) {
           if (depName.startsWith('@ap2-travel/')) {
             throw new Error(
-              `${manifest.name} must remain profile-neutral (Invariant A); remove ${depName} from ${depMapName}`,
+              `${manifest.name} must remain profile-neutral; remove ${depName} from ${depMapName}`,
             )
           }
         }

@@ -11,8 +11,9 @@
  * helpers were to accidentally pull in `node:crypto` or other Node primitives,
  * the import or execution would fail here.
  *
- * Per the PR 3 exit gate in TRUST_LAYER_SDK_PUBLIC_BUILDOUT.md: "browser path
- * runs under happy-dom".
+ * The browser path is part of the rc.1 publish gate per the canonical
+ * SDK doc at `docs/domains/auth/trust-layer-sdk.md` §5.6 (verifier rc.1
+ * entry criteria require browser-safe tests).
  */
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 

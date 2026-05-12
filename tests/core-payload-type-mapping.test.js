@@ -148,9 +148,34 @@ test('PAYLOAD_TYPE_PURPOSE_MAP is runtime-immutable: set/delete/clear all throw'
 		() => /** @type {any} */ (PAYLOAD_TYPE_PURPOSE_MAP).clear(),
 		TypeError,
 	)
-	// And the Map is frozen, so the override methods themselves can't be
-	// reassigned.
+	// Attempting to reassign the methods on the proxy is also blocked.
 	assert.throws(() => {
 		;/** @type {any} */ (PAYLOAD_TYPE_PURPOSE_MAP).set = () => undefined
 	})
+})
+
+test('PAYLOAD_TYPE_PURPOSE_MAP also blocks the Map.prototype.* call-bypass path', () => {
+	// `Map.prototype.set.call(theMap, ...)` historically bypassed instance-
+	// method overrides. With the Proxy wrapping, the prototype method runs
+	// with `this = proxy`, which lacks the `[[MapData]]` internal slot, so
+	// V8 raises a TypeError ("incompatible receiver"). The result is
+	// equivalent: no mutation reaches the underlying Map.
+	assert.throws(
+		() => Map.prototype.set.call(PAYLOAD_TYPE_PURPOSE_MAP, 'extra.Type/v1', 'sign-offer'),
+		TypeError,
+	)
+	assert.throws(
+		() => Map.prototype.delete.call(PAYLOAD_TYPE_PURPOSE_MAP, 'ap2.IntentMandate/v1'),
+		TypeError,
+	)
+	assert.throws(
+		() => Map.prototype.clear.call(PAYLOAD_TYPE_PURPOSE_MAP),
+		TypeError,
+	)
+	// And the map is still the same size — no mutation succeeded.
+	assert.equal(PAYLOAD_TYPE_PURPOSE_MAP.size, 21)
+	assert.equal(
+		PAYLOAD_TYPE_PURPOSE_MAP.get('ap2.IntentMandate/v1'),
+		'sign-intent-mandate',
+	)
 })

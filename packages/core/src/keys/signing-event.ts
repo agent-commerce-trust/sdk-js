@@ -1,13 +1,13 @@
 /**
- * `SigningEvent` discriminated union per §7.1 of the AP2-Travel trust-layer
- * SDK specification. Emitted by `KeyProvider.onSigningEvent` (optional audit
- * hook) so regulated deployments can stream every signing event to an audit
- * log. Six variants cover the full sign + derive request/result/error
- * lifecycle.
+ * `SigningEvent` discriminated union per §7.1 of the canonical trust-layer
+ * SDK doc at `docs/domains/auth/trust-layer-sdk.md`. Emitted by
+ * `KeyProvider.onSigningEvent` (optional audit hook) so regulated
+ * deployments can stream every signing event to an audit log. Six variants
+ * cover the full sign + derive request/result/error lifecycle.
  *
- * Depends on `KeyProviderError` from the error hierarchy (PR 2) — this is
- * why `SigningEvent` lives in PR 4 (after PR 2's errors land) and not in
- * PR 1's standalone foundational types.
+ * Depends on `KeyProviderError` from the error hierarchy, which is why this
+ * type lives in the `keys/` module alongside the contract types rather than
+ * in the standalone foundational `types/` directory.
  */
 import type { KeyProviderError } from '../errors.js'
 import type {

@@ -16,9 +16,11 @@ import { packageRole as verifierRole } from '@agent-commerce-trust/verifier'
 import { __namespace_reserved as witnessReserved } from '@agent-commerce-trust/witness'
 
 test('core exposes the rc.1 public surface (canonical helpers + error hierarchy)', async () => {
-  // Per Invariant E of TRUST_LAYER_SDK_PUBLIC_BUILDOUT, every public export
-  // on core at rc.1 traces to §5.1 buildout-entry criteria or §7 normative
-  // contract. Scaffold `packageRole`/`packageRoles` metadata is gone.
+  // Every public export on core at rc.1 traces to §5.1 (package entry
+  // criteria) or §7 (normative contract) of the canonical SDK doc at
+  // `docs/domains/auth/trust-layer-sdk.md`. Scaffold
+  // `packageRole`/`packageRoles` metadata is intentionally absent here;
+  // it stays only on the not-yet-published Phase-1 stubs.
   assert.equal(coreCanonicalize({ b: 2, a: 1 }), '{"a":1,"b":2}')
   assert.equal((await coreSha256Hex({ a: 1, b: 2 })).length, 64)
   const err = new KeyNotFoundError('test')

@@ -17,18 +17,32 @@
 import { KeyPurposePayloadTypeMismatchError } from '../errors.js'
 import type { KeyPurpose } from '../types/key-purpose.js'
 
-function freezeMap<K, V>(map: Map<K, V>): ReadonlyMap<K, V> {
+function freezeMap<K, V>(inner: Map<K, V>): ReadonlyMap<K, V> {
 	const throwReadonly = (): never => {
 		throw new TypeError('PAYLOAD_TYPE_PURPOSE_MAP is read-only; the normative mapping is frozen at module load')
 	}
-	// Override the mutating methods to throw, then freeze the instance so the
-	// overrides themselves cannot be replaced. The declared type ReadonlyMap
-	// hides set/delete/clear at compile time; this layer enforces it at runtime.
-	;(map as Map<K, V>).set = throwReadonly as unknown as Map<K, V>['set']
-	;(map as Map<K, V>).delete = throwReadonly as unknown as Map<K, V>['delete']
-	;(map as Map<K, V>).clear = throwReadonly as unknown as Map<K, V>['clear']
-	Object.freeze(map)
-	return map
+	// Wrap the Map in a Proxy whose `get` trap returns a throwing stub for
+	// every mutation method. This covers the obvious `m.set(...)` path AND
+	// the prototype-bypass path `Map.prototype.set.call(m, ...)`:
+	// the latter executes `Map.prototype.set` with `this` pointing at the
+	// Proxy, which has no `[[MapData]]` internal slot, so V8 raises
+	// `TypeError: Method Map.prototype.set called on incompatible receiver`.
+	// Non-mutation methods (`get`, `has`, `size`, iterators) reach the inner
+	// Map through the `get` trap's function-binding fallback, so reads work
+	// transparently.
+	return new Proxy(inner, {
+		get(target, prop) {
+			if (prop === 'set' || prop === 'delete' || prop === 'clear') {
+				return throwReadonly
+			}
+			const value = Reflect.get(target, prop, target)
+			return typeof value === 'function' ? (value as (...args: unknown[]) => unknown).bind(target) : value
+		},
+		set: throwReadonly,
+		deleteProperty: throwReadonly,
+		defineProperty: throwReadonly,
+		setPrototypeOf: throwReadonly,
+	}) as ReadonlyMap<K, V>
 }
 
 export const PAYLOAD_TYPE_PURPOSE_MAP: ReadonlyMap<string, KeyPurpose> = freezeMap(

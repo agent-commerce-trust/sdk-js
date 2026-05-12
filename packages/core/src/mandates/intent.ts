@@ -52,8 +52,45 @@ export function validateIntentMandate(value: unknown): asserts value is IntentMa
  * NOT by this pattern: slash separators (`2026/01/01`), space-separated
  * date+time (`2026-01-01 00:00:00`), date-only (`2026-01-01`), unanchored
  * input, and locale strings like `Jan 1, 2026`.
+ *
+ * Capture groups: 1=year, 2=month, 3=day, 4=hour, 5=minute, 6=second,
+ * 7=fractional seconds (optional, including the leading `.`),
+ * 8=timezone (`Z` or `±HH:MM`).
  */
-const ISO_8601_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/
+const ISO_8601_INSTANT =
+	/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/
+
+function daysInMonth(year: number, month: number): number {
+	if (month === 2) {
+		const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+		return isLeap ? 29 : 28
+	}
+	if ([4, 6, 9, 11].includes(month)) return 30
+	return 31
+}
+
+/**
+ * Validates the calendar correctness of the matched fields and returns the
+ * field values for downstream checks. Rejects impossible-but-formatted
+ * instants like `2026-02-31T00:00:00Z` and `2026-01-01T25:00:00Z`. Returns
+ * undefined if the calendar fields don't form a real instant.
+ */
+function parseStrictIso8601Match(match: RegExpExecArray): { ms: number } | undefined {
+	const year = Number(match[1])
+	const month = Number(match[2])
+	const day = Number(match[3])
+	const hour = Number(match[4])
+	const minute = Number(match[5])
+	const second = Number(match[6])
+	if (month < 1 || month > 12) return undefined
+	if (day < 1 || day > daysInMonth(year, month)) return undefined
+	if (hour > 23) return undefined
+	if (minute > 59) return undefined
+	if (second > 60) return undefined // allow leap seconds (60); JS Date won't, but the format does
+	const ms = Date.parse(match[0])
+	if (Number.isNaN(ms)) return undefined
+	return { ms }
+}
 
 /**
  * Shared shape check for any mandate envelope. Verifies presence + types of
@@ -85,24 +122,31 @@ export function assertEnvelopeShape(value: unknown, expectedPayloadType: string)
 	}
 	const issuedAtStr = v.issuedAt as string
 	const expiresAtStr = v.expiresAt as string
-	if (!ISO_8601_INSTANT.test(issuedAtStr)) {
+	const issuedAtMatch = ISO_8601_INSTANT.exec(issuedAtStr)
+	const expiresAtMatch = ISO_8601_INSTANT.exec(expiresAtStr)
+	if (!issuedAtMatch) {
 		throw new MandateError(
 			`mandate field 'issuedAt' must be a strict ISO 8601 instant (YYYY-MM-DDTHH:MM:SS[.fff]{Z|±HH:MM}), got '${issuedAtStr}'`,
 		)
 	}
-	if (!ISO_8601_INSTANT.test(expiresAtStr)) {
+	if (!expiresAtMatch) {
 		throw new MandateError(
 			`mandate field 'expiresAt' must be a strict ISO 8601 instant (YYYY-MM-DDTHH:MM:SS[.fff]{Z|±HH:MM}), got '${expiresAtStr}'`,
 		)
 	}
-	const issuedAt = Date.parse(issuedAtStr)
-	const expiresAt = Date.parse(expiresAtStr)
-	if (Number.isNaN(issuedAt) || Number.isNaN(expiresAt)) {
-		// Shouldn't reach: the regex above accepts a superset of parseable
-		// instants, so any string that passed the regex must also parse.
-		throw new MandateError(`mandate timestamps failed Date.parse after ISO 8601 regex acceptance`)
+	const issuedAt = parseStrictIso8601Match(issuedAtMatch)
+	const expiresAt = parseStrictIso8601Match(expiresAtMatch)
+	if (issuedAt === undefined) {
+		throw new MandateError(
+			`mandate field 'issuedAt' is a calendar-invalid instant (e.g. impossible day-of-month or out-of-range time): '${issuedAtStr}'`,
+		)
 	}
-	if (expiresAt <= issuedAt) {
+	if (expiresAt === undefined) {
+		throw new MandateError(
+			`mandate field 'expiresAt' is a calendar-invalid instant (e.g. impossible day-of-month or out-of-range time): '${expiresAtStr}'`,
+		)
+	}
+	if (expiresAt.ms <= issuedAt.ms) {
 		throw new MandateError(
 			`mandate field 'expiresAt' (${expiresAtStr}) must be strictly after 'issuedAt' (${issuedAtStr})`,
 		)

@@ -65,9 +65,10 @@ test('CommonJS entrypoint for @agent-commerce-trust/core/dev resolves and expose
 })
 
 test('CommonJS entrypoints for non-core Phase-1 packages expose package roles (scaffold metadata)', () => {
-  // These packages are still at 0.1.0-rc.0 stub state per LANE_PROGRESS B7.
-  // packageRole metadata stays on them until each package's own rc.1
-  // buildout lands (Track 4 PR 4+, then Track 5 per the spec).
+  // These packages are still at 0.1.0-rc.0 stub state. packageRole
+  // metadata stays on them until each package reaches its own rc.1
+  // public surface; at that point the scaffold metadata is dropped
+  // (mirroring what core did for its own rc.1).
   assert.equal(agent.packageRole, 'agent mandate-chain plumbing')
   assert.equal(commerceMcp.packageRole, 'supplier MCP server kit')
   assert.equal(supplier.packageRole, 'supplier primitives')

@@ -135,6 +135,41 @@ test('validateIntentMandate accepts strict ISO 8601 with numeric offset (+HH:MM)
 	validateIntentMandate(offsetForm)
 })
 
+test('validateIntentMandate rejects calendar-invalid instants that pass the regex', () => {
+	// Format-valid but calendar-invalid: impossible day-of-month, out-of-range
+	// hour/minute/second. The regex alone accepts these; the calendar check
+	// catches them.
+	const intent = createIntentMandate({}, baseIntentOpts())
+	const calendarInvalid = [
+		'2026-02-31T00:00:00Z', // Feb 31 doesn't exist
+		'2026-04-31T00:00:00Z', // Apr 31 doesn't exist
+		'2025-02-29T00:00:00Z', // 2025 is not a leap year
+		'2026-13-01T00:00:00Z', // month 13
+		'2026-00-15T00:00:00Z', // month 0
+		'2026-01-32T00:00:00Z', // day 32
+		'2026-01-01T25:00:00Z', // hour 25
+		'2026-01-01T00:60:00Z', // minute 60
+	]
+	for (const bad of calendarInvalid) {
+		assert.throws(
+			() => validateIntentMandate({ ...intent, issuedAt: bad }),
+			MandateError,
+			`expected validateIntentMandate to reject calendar-invalid issuedAt='${bad}'`,
+		)
+	}
+})
+
+test('validateIntentMandate accepts Feb 29 in a real leap year', () => {
+	// Calendar-validity positive regression.
+	const intent = createIntentMandate({}, baseIntentOpts())
+	const leap = {
+		...intent,
+		issuedAt: '2024-02-29T00:00:00Z',
+		expiresAt: '2024-02-29T00:15:00Z',
+	}
+	validateIntentMandate(leap)
+})
+
 test('validateIntentMandate throws MandateError when a required field is missing', () => {
 	const intent = createIntentMandate({}, baseIntentOpts())
 	for (const field of ['nonce', 'issuedAt', 'expiresAt', 'issuer', 'correlationID']) {

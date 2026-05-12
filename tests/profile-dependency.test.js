@@ -14,8 +14,8 @@ import {
 } from '@agent-commerce-trust/core'
 
 // Phase-1 packages that depend on @ap2-travel/profile as a vertical-profile
-// extension. `core` is intentionally excluded — per `Invariant A` of the
-// TRUST_LAYER_SDK_PUBLIC_BUILDOUT spec (and §7.1 of the canonical SDK doc),
+// extension. `core` is intentionally excluded — per §7.1 of the canonical
+// SDK doc at `docs/domains/auth/trust-layer-sdk.md`,
 // `@agent-commerce-trust/core` is profile-neutral: profiles depend on core,
 // never the reverse.
 const profileConsumingPhaseOnePackages = ['agent', 'commerce-mcp', 'supplier', 'verifier']
@@ -36,7 +36,7 @@ test('core canonical helpers produce identical bytes to the AP2 Travel profile r
 	)
 })
 
-test('core is profile-neutral — no @ap2-travel/* in runtime deps (Invariant A)', async () => {
+test('core is profile-neutral — no @ap2-travel/* in runtime deps', async () => {
 	const manifest = JSON.parse(
 		await readFile(new URL('../packages/core/package.json', import.meta.url), 'utf8'),
 	)
@@ -45,7 +45,7 @@ test('core is profile-neutral — no @ap2-travel/* in runtime deps (Invariant A)
 			assert.equal(
 				dep.startsWith('@ap2-travel/'),
 				false,
-				`@agent-commerce-trust/core must not depend on ${dep} (Invariant A — profile-neutral core)`,
+				`@agent-commerce-trust/core must not depend on ${dep} (profile-neutral core; profiles depend on core, never the reverse)`,
 			)
 		}
 	}
