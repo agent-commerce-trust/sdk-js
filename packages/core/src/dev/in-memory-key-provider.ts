@@ -81,22 +81,27 @@ export class InMemoryKeyProvider implements KeyProvider {
 		const version = '1'
 		const createdAt = new Date()
 
-		const publicKey: PublicKey = {
+		// Deep-freeze the publicKey + purposes so the returned SigningKeyRef
+		// (which is the same object stored internally) cannot be mutated by a
+		// caller to inject a new purpose or swap the public key. Without this,
+		// `(returnedRef as any).purposes.push('any-purpose')` would alias
+		// `entry.keyRef.purposes` and bypass sign()'s purpose-list check.
+		const publicKey: PublicKey = Object.freeze({
 			kty: options.algorithm === 'Ed25519' ? 'OKP' : 'EC',
 			algorithm: options.algorithm,
 			encoded: encodedPublic,
 			version,
-		}
+		})
 
-		const keyRef: SigningKeyRef = {
+		const keyRef: SigningKeyRef = Object.freeze({
 			kind: 'signing',
 			keyId,
 			algorithm: options.algorithm,
 			publicKey,
-			purposes: [...options.purposes],
+			purposes: Object.freeze([...options.purposes]) as readonly SigningKeyPurpose[],
 			notBefore: options.notBefore ?? createdAt,
 			...(options.notAfter !== undefined ? { notAfter: options.notAfter } : {}),
-		}
+		}) as SigningKeyRef
 
 		this.#keys.set(keyId, {
 			keyRef,

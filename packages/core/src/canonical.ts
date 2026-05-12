@@ -1,12 +1,17 @@
 /**
  * Canonical JSON serialization + SHA-256/SHA-384 digests.
  *
- * The canonical encoding is RFC 8785 "JSON Canonicalization Scheme" shaped:
- *   - object keys sorted lexicographically by Unicode code point,
+ * The canonical encoding follows RFC 8785 "JSON Canonicalization Scheme":
+ *   - object keys sorted lexicographically by UTF-16 code unit (per RFC §3.2.3),
  *   - `undefined` properties dropped,
  *   - arrays preserve order,
- *   - primitives stringified via JSON.stringify,
- *   - non-finite numbers rejected.
+ *   - primitives stringified via JSON.stringify (ECMAScript number form is the
+ *     RFC 8785 normative number representation),
+ *   - non-finite numbers rejected,
+ *   - strings containing lone (unpaired) surrogates rejected (per RFC §3.2.2.2
+ *     — strings must be valid UTF-16),
+ *   - only plain JSON objects (prototype `Object.prototype` or `null`) accepted
+ *     as records; class instances, `Map`, `Date`, `Set`, etc. are rejected.
  *
  * Hashing uses the WebCrypto `globalThis.crypto.subtle.digest` API exclusively
  * (no `node:crypto` import). Node 20+ exposes `globalThis.crypto.subtle`
@@ -55,7 +60,16 @@ function stringifyCanonical(value: unknown): string {
     return 'null'
   }
 
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+  if (typeof value === 'string') {
+    if (hasLoneSurrogate(value)) {
+      throw new TypeError(
+        'Canonical JSON does not support strings containing lone (unpaired) surrogates',
+      )
+    }
+    return JSON.stringify(value)
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
     if (typeof value === 'number' && !Number.isFinite(value)) {
       throw new TypeError('Canonical JSON does not support non-finite numbers')
     }
@@ -66,39 +80,89 @@ function stringifyCanonical(value: unknown): string {
     return `[${value.map((item) => stringifyCanonical(item)).join(',')}]`
   }
 
-  if (isJsonObject(value)) {
+  if (isPlainJsonObject(value)) {
+    // Sort object keys by UTF-16 code unit, which is what the JavaScript `<`
+    // / `>` operators do natively on strings — and what RFC 8785 §3.2.3
+    // requires. Lone-surrogate keys are caught by the per-key
+    // hasLoneSurrogate check below before sort, mirroring the value-side
+    // string check above.
+    for (const key of Object.keys(value)) {
+      if (hasLoneSurrogate(key)) {
+        throw new TypeError(
+          `Canonical JSON does not support object keys containing lone surrogates; offending key: ${JSON.stringify(key)}`,
+        )
+      }
+    }
     const entries = Object.entries(value)
       .filter(([, entryValue]) => entryValue !== undefined)
-      .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
+      .sort(([left], [right]) => compareUtf16CodeUnits(left, right))
 
     return `{${entries
       .map(([key, entryValue]) => `${JSON.stringify(key)}:${stringifyCanonical(entryValue)}`)
       .join(',')}}`
   }
 
-  throw new TypeError(`Canonical JSON does not support ${typeof value}`)
+  throw new TypeError(
+    `Canonical JSON does not support values of type ${describeValue(value)}`,
+  )
 }
 
-function isJsonObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
+/**
+ * Accepts only "plain" JSON-shaped objects: prototype is either
+ * `Object.prototype` (object literals, `{ ...spread }`, `Object.assign(...)`)
+ * or `null` (`Object.create(null)`). Rejects `Map`, `Set`, `Date`, `RegExp`,
+ * `Error`, and class instances — those have non-Object prototypes and would
+ * silently canonicalize as `{}` if passed through to `Object.entries`.
+ */
+function isPlainJsonObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null) return false
+  const proto = Object.getPrototypeOf(value)
+  return proto === null || proto === Object.prototype
 }
 
-function compareUnicodeCodePoints(left: string, right: string): number {
-  const leftPoints = Array.from(left)
-  const rightPoints = Array.from(right)
-  const length = Math.min(leftPoints.length, rightPoints.length)
+function describeValue(value: unknown): string {
+  if (value === null) return 'null'
+  const type = typeof value
+  if (type !== 'object') return type
+  const proto = Object.getPrototypeOf(value)
+  if (proto === null) return 'object (null-prototype)'
+  if (proto === Object.prototype) return 'object'
+  const ctorName = (proto as { constructor?: { name?: string } }).constructor?.name
+  return `non-plain object (${ctorName ?? 'unknown class'})`
+}
 
-  for (let index = 0; index < length; index += 1) {
-    const leftPoint = leftPoints[index]?.codePointAt(0)
-    const rightPoint = rightPoints[index]?.codePointAt(0)
+/**
+ * Lexicographic comparison of two strings by UTF-16 code unit, matching
+ * RFC 8785 §3.2.3 normative ordering. JavaScript's native `<` / `>` operators
+ * on strings already perform code-unit comparison; we use them directly.
+ */
+function compareUtf16CodeUnits(left: string, right: string): number {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
+}
 
-    if (leftPoint === undefined || rightPoint === undefined) {
-      break
-    }
-    if (leftPoint !== rightPoint) {
-      return leftPoint - rightPoint
+/**
+ * Returns true if the string contains an unpaired surrogate (a high surrogate
+ * U+D800–U+DBFF not followed by a low surrogate U+DC00–U+DFFF, or any low
+ * surrogate not preceded by a high surrogate). RFC 8785 strings must be valid
+ * UTF-16; lone surrogates have no UTF-8 representation and would round-trip
+ * inconsistently across implementations.
+ */
+function hasLoneSurrogate(value: string): boolean {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i)
+    if (code >= 0xD800 && code <= 0xDBFF) {
+      // High surrogate — must be followed by a low surrogate.
+      const next = value.charCodeAt(i + 1)
+      if (Number.isNaN(next) || next < 0xDC00 || next > 0xDFFF) {
+        return true
+      }
+      i += 1 // skip the validated low surrogate
+    } else if (code >= 0xDC00 && code <= 0xDFFF) {
+      // Lone low surrogate (not preceded by a high surrogate in the same iteration).
+      return true
     }
   }
-
-  return leftPoints.length - rightPoints.length
+  return false
 }

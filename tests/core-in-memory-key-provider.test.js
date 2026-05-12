@@ -32,6 +32,42 @@ test('InMemoryKeyProvider does not declare derive (optional KeyProvider method)'
 	assert.equal(provider.derive, undefined)
 })
 
+test('returned SigningKeyRef is deep-frozen: mutating purposes via the returned reference cannot bypass sign()', async () => {
+	// Threat model: a caller obtains the returned SigningKeyRef and mutates
+	// its `purposes` array to inject a purpose that the key was not granted.
+	// Without deep-freeze, that mutation aliases the provider's internal
+	// state and sign() would happily accept the injected purpose.
+	const provider = new InMemoryKeyProvider()
+	const ref = await provider.generateSigningKey({
+		algorithm: 'Ed25519',
+		purposes: ['sign-intent-mandate'],
+	})
+	// Strict mode: mutating a frozen array throws TypeError.
+	assert.throws(() => {
+		;/** @type {any} */ (ref.purposes).push('sign-cart-mandate')
+	}, TypeError)
+	assert.throws(() => {
+		;/** @type {any} */ (ref).purposes = ['sign-cart-mandate']
+	}, TypeError)
+	assert.throws(() => {
+		;/** @type {any} */ (ref).extra = 'mutated'
+	}, TypeError)
+
+	// And sign() still rejects an unauthorised purpose — even after the
+	// (now-failed) mutation attempts above, the provider's view of purposes
+	// is unchanged.
+	await assert.rejects(
+		() => provider.sign({
+			keyId: ref.keyId,
+			algorithm: 'Ed25519',
+			payload: canonicalBytes({ x: 1 }),
+			payloadType: 'ap2.CartMandate/v1',
+			purpose: 'sign-cart-mandate',
+		}),
+		KeyPurposeMismatchError,
+	)
+})
+
 // === Key generation + retrieval ===
 
 test('generateSigningKey returns a SigningKeyRef carrying the requested algorithm + purposes (Ed25519)', async () => {

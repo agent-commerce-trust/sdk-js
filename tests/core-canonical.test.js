@@ -9,9 +9,70 @@ import {
 } from '@agent-commerce-trust/core'
 import { canonicalReferenceFixtures } from './_fixtures/canonical-fixtures.mjs'
 
-test('canonicalize sorts object keys lexicographically by Unicode code point', () => {
+test('canonicalize sorts object keys lexicographically by UTF-16 code unit (RFC 8785 §3.2.3)', () => {
 	assert.equal(canonicalize({ b: 2, a: 1 }), '{"a":1,"b":2}')
 	assert.equal(canonicalize({ z: 1, a: 2, m: 3 }), '{"a":2,"m":3,"z":1}')
+})
+
+test('canonicalize sorts surrogate-pair keys by UTF-16 code unit, not codepoint', () => {
+	// Math bold A is codepoint U+1D400 but UTF-16 encodes it as the surrogate
+	// pair [0xD835, 0xDC00]. A codepoint sort would place it AFTER any BMP
+	// character ≤ U+1D3FF; UTF-16 code-unit sort places 0xD835 BEFORE any
+	// BMP code point ≥ 0xD836 (which includes the private-use area at U+E000).
+	// RFC 8785 §3.2.3 requires the UTF-16 ordering.
+	const bmpHigh = ''
+	const surrogatePair = '\u{1D400}'
+	const result = canonicalize({ [bmpHigh]: 1, [surrogatePair]: 2 })
+	const surrogateIdx = result.indexOf(JSON.stringify(surrogatePair))
+	const bmpIdx = result.indexOf(JSON.stringify(bmpHigh))
+	assert.ok(
+		surrogateIdx >= 0 && bmpIdx >= 0 && surrogateIdx < bmpIdx,
+		`UTF-16 code-unit sort requires the surrogate-pair key (UTF-16 starts 0xD835) to sort before the BMP private-use key 0xE000; canonical was: ${result}`,
+	)
+})
+
+test('canonicalize accepts strings composed of valid surrogate pairs', () => {
+	const out = canonicalize({ math: '𝐀𝐁𝐂' })
+	assert.match(out, /𝐀𝐁𝐂/)
+})
+
+test('canonicalize rejects strings containing a lone high surrogate (RFC 8785 §3.2.2.2)', () => {
+	const lonely = '\uD835X'
+	assert.throws(() => canonicalize({ k: lonely }), TypeError)
+})
+
+test('canonicalize rejects strings containing a lone low surrogate', () => {
+	const lonely = 'X\uDC00'
+	assert.throws(() => canonicalize({ k: lonely }), TypeError)
+})
+
+test('canonicalize rejects object keys containing a lone surrogate', () => {
+	const obj = { '\uD835key': 1 }
+	assert.throws(() => canonicalize(obj), TypeError)
+})
+
+test('canonicalize rejects Map (would otherwise silently canonicalize as {})', () => {
+	const m = new Map()
+	m.set('a', 1)
+	m.set('b', 2)
+	assert.throws(() => canonicalize(m), TypeError)
+})
+
+test('canonicalize rejects Date / Set / RegExp / class instances', () => {
+	assert.throws(() => canonicalize(new Date('2026-01-01T00:00:00Z')), TypeError)
+	assert.throws(() => canonicalize(new Set([1, 2])), TypeError)
+	assert.throws(() => canonicalize(/foo/), TypeError)
+	class MyClass {
+		constructor(x) { this.x = x }
+	}
+	assert.throws(() => canonicalize(new MyClass(1)), TypeError)
+})
+
+test('canonicalize accepts a null-prototype object (Object.create(null))', () => {
+	const obj = Object.create(null)
+	obj.a = 1
+	obj.b = 2
+	assert.equal(canonicalize(obj), '{"a":1,"b":2}')
 })
 
 test('canonicalize recurses into nested objects and arrays', () => {
