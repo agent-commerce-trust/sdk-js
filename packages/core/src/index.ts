@@ -9,6 +9,11 @@ export type * from './types/index.js'
 export type * from './keys/index.js'
 
 export {
+  PAYLOAD_TYPE_PURPOSE_MAP,
+  validatePayloadTypePurpose,
+} from './keys/payload-type-mapping.js'
+
+export {
   TrustLayerError,
   CanonicalizationError,
   MandateError,
