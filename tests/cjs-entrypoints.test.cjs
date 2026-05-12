@@ -34,6 +34,20 @@ test('CommonJS entrypoint for core exposes the real rc.1 public surface', async 
     core.PAYLOAD_TYPE_PURPOSE_MAP.get('ap2.IntentMandate/v1'),
     'sign-intent-mandate',
   )
+
+  // AP2 mandate helpers (the prior PR 7 runtime surface)
+  assert.equal(typeof core.createIntentMandate, 'function')
+  assert.equal(typeof core.validateIntentMandate, 'function')
+  assert.equal(typeof core.createCartMandate, 'function')
+  assert.equal(typeof core.validateCartMandate, 'function')
+  assert.equal(typeof core.createPaymentMandate, 'function')
+  assert.equal(typeof core.validatePaymentMandate, 'function')
+  const intent = core.createIntentMandate({ goal: 'cjs' }, {
+    expiresAt: new Date(Date.now() + 60_000),
+    issuer: 'did:web:cjs.example.com',
+  })
+  assert.equal(intent.payloadType, 'ap2.IntentMandate/v1')
+  core.validateIntentMandate(intent)
 })
 
 test('CommonJS entrypoint for @agent-commerce-trust/core/dev resolves and exposes InMemoryKeyProvider', async () => {

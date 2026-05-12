@@ -13,6 +13,16 @@ export {
   validatePayloadTypePurpose,
 } from './keys/payload-type-mapping.js'
 
+export type * from './mandates/index.js'
+export {
+  createIntentMandate,
+  validateIntentMandate,
+  createCartMandate,
+  validateCartMandate,
+  createPaymentMandate,
+  validatePaymentMandate,
+} from './mandates/index.js'
+
 export {
   TrustLayerError,
   CanonicalizationError,
